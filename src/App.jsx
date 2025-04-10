@@ -1,14 +1,15 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import AdminLogin from './pages/AdminLogin';
+import './App.css';
 
-function App() {
+const App = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-purple-500 via-pink-500 to-red-500">
-      <h1 className="text-4xl font-bold text-white">Tailwind is working! 🚀</h1>
-    </div>
+    <Routes>
+      <Route path="/" element={<Navigate to="/admin/login" />} />
+      <Route path="/admin/login" element={<AdminLogin />} />
+    </Routes>
   );
-}
+};
 
 export default App;
