@@ -119,6 +119,9 @@ const Canvas = React.forwardRef((props, ref) => {
       setNotFromUI: (p) => engineRef.current?.setNotFromUI?.(p),
       getVdcVM:      () => engineRef.current?.getVdcVM?.(),
       setVdcFromUI:  (p) => engineRef.current?.setVdcFromUI?.(p),
+      exportDesignFile: () => engineRef.current?.buildDesignSnapshot?.(),
+      importDesignFile: (data) => engineRef.current?.loadDesignSnapshot?.(data),
+
 
     }),
     []

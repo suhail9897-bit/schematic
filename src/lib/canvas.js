@@ -141,6 +141,151 @@ class CanvasUtils {
     this.canvas.addEventListener("mouseup", this.handleMouseUp.bind(this));
   }
 
+
+  // ======= DESIGN FILE: EXPORT / IMPORT =======
+
+// Build a complete, lossless snapshot of the current scene
+buildDesignSnapshot() {
+  const pick = (obj, keys) => {
+    const out = {};
+    for (const k of keys) if (obj && typeof obj[k] !== "undefined") out[k] = obj[k];
+    return out;
+  };
+
+  const components = this.components.map(c => {
+    // known per-type option bags we preserve if present
+    const bags = pick(c, [
+      "diodeFixed","diodeSize",
+      "npn","pnp","nmos","pmos",
+      "nand","nor","xor",
+      "vdc"
+    ]);
+    return {
+      id: c.id,
+      type: c.type,
+      x: c.x, y: c.y,
+      angle: c.angle || 0,
+      label: c.label || "",
+      value: c.value || "",
+      terminals: (c.terminals || []).map(t => ({ x: t.x, y: t.y, netLabel: t.netLabel || "" })),
+      ...bags
+    };
+  });
+
+  const wires = this.wires.map(w => ({
+    id: w.id,
+    from: { ...w.from },
+    to:   { ...w.to },
+    netLabel: w.netLabel || w.from?.netLabel || w.to?.netLabel || "",
+    path: (w.path || []).map(p => ({ x: p.x, y: p.y }))
+  }));
+
+  const counters = {
+    resistorCount: this.resistorCount || 0,
+    capacitorCount: this.capacitorCount || 0,
+    inductorCount: this.inductorCount || 0,
+    diodeCount: this.diodeCount || 0,
+    vdcCount: this.vdcCount || 0,
+    npnCount: this.npnCount || 0,
+    pnpCount: this.pnpCount || 0,
+    nmosCount: this.nmosCount || 0,
+    pmosCount: this.pmosCount || 0,
+    inCount: this.inCount || 0,
+    outCount: this.outCount || 0,
+    inoutCount: this.inoutCount || 0,
+    vssiCount: this.vssiCount || 0,
+    vddiCount: this.vddiCount || 0,
+    andCount: this.andCount || 0,
+    orCount: this.orCount || 0,
+    notCount: this.notCount || 0,
+    nandCount: this.nandCount || 0,
+    norCount: this.norCount || 0,
+    xorCount: this.xorCount || 0
+  };
+
+  return {
+    meta: { app: "LogicKnots", kind: "design", version: 1, createdAt: new Date().toISOString() },
+    canvas: { gridSize: this.gridSize, scale: this.scale, offsetX: this.offsetX, offsetY: this.offsetY, netCounter: this.netCounter },
+    counters,
+    components,
+    wires
+  };
+}
+
+// Load a snapshot back into the engine (lossless redraw)
+loadDesignSnapshot(snapshot) {
+  if (!snapshot || snapshot.meta?.kind !== "design") {
+    alert("Invalid Design file.");
+    return;
+  }
+
+  // 1) clear
+  this.clearAll();
+
+  // 2) restore canvas/view
+  if (snapshot.canvas) {
+    if (typeof snapshot.canvas.gridSize === "number") this.gridSize = snapshot.canvas.gridSize;
+    if (typeof snapshot.canvas.scale === "number")    this.scale    = snapshot.canvas.scale;
+    if (typeof snapshot.canvas.offsetX === "number")  this.offsetX  = snapshot.canvas.offsetX;
+    if (typeof snapshot.canvas.offsetY === "number")  this.offsetY  = snapshot.canvas.offsetY;
+    if (typeof snapshot.canvas.netCounter === "number") this.netCounter = snapshot.canvas.netCounter;
+  }
+
+  // 3) restore components
+  const comps = Array.isArray(snapshot.components) ? snapshot.components : [];
+  for (const c of comps) {
+    // shallow copy, keep exact structure expected by draw()
+    const restored = {
+      id: c.id, type: c.type, x: c.x, y: c.y,
+      angle: c.angle || 0, label: c.label || "", value: c.value || "",
+      terminals: (c.terminals || []).map(t => ({ x: t.x, y: t.y, netLabel: t.netLabel || "" })),
+
+      // per-type bags (preserve if present)
+      diodeFixed: c.diodeFixed, diodeSize: c.diodeSize,
+      npn: c.npn, pnp: c.pnp, nmos: c.nmos, pmos: c.pmos,
+      nand: c.nand, nor: c.nor, xor: c.xor,
+      vdc: c.vdc
+    };
+    this.components.push(restored);
+  }
+
+  // 4) restore counters (for future numbering continuity)
+  const ctr = snapshot.counters || {};
+  Object.keys(ctr).forEach(k => { this[k] = ctr[k]; });
+
+  // 5) restore wires
+  const wires = Array.isArray(snapshot.wires) ? snapshot.wires : [];
+  for (const w of wires) {
+    // validate endpoints
+    const fromComp = this.components.find(c => c.id === w.from?.compId);
+    const toComp   = this.components.find(c => c.id === w.to?.compId);
+    if (!fromComp || !toComp) continue;
+
+    const wire = {
+      id: w.id || `wire${this.wires.length + 1}`,
+      from: { compId: w.from.compId, terminalIndex: w.from.terminalIndex, netLabel: w.from.netLabel || "" },
+      to:   { compId: w.to.compId,   terminalIndex: w.to.terminalIndex,   netLabel: w.to.netLabel   || "" },
+      path: Array.isArray(w.path) && w.path.length ? w.path.map(p => ({ x: p.x, y: p.y })) : null,
+      netLabel: w.netLabel || ""
+    };
+
+    // fallback route if path missing
+    if (!wire.path) {
+      const ft = fromComp.terminals[wire.from.terminalIndex];
+      const tt = toComp.terminals[wire.to.terminalIndex];
+      const start = { x: fromComp.x + ft.x, y: fromComp.y + ft.y };
+      const end   = { x: toComp.x + tt.x,   y: toComp.y + tt.y };
+      const alt = aStarOrthogonalPath(start, end, this.components, this.gridSize);
+      if (alt) wire.path = alt;
+    }
+    if (wire.path) this.wires.push(wire);
+  }
+
+  // 6) draw
+  this.draw();
+}
+
+
     // --- auto label helpers (NAND/NOR/XOR) ---
   nextAutoLabel(base) {
     // base: 'NAND' | 'NOR' | 'XOR'

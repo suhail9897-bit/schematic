@@ -6,8 +6,9 @@ import Tooltip from '../extraFiles/tooltip';
 import Toggle from '../dropdowns/toggle';
 import LeftSidebar from '../dropdowns/leftsidebar';
 import { Cpu } from 'lucide-react';
+import DesignPopup from '../extraFiles/designpopup';
+import { openDesignDownload, triggerDesignUpload } from '../extraFiles/designpopup';
 
-// import { LuLaptop } from 'react-icons/lu';
 // Square-with-corners icon (matches 18px toolbar size)
 const ResetViewSquare = ({ size = 18 }) => (
   <svg
@@ -94,10 +95,9 @@ const ComponentPanel = ({
   }) => {
   
 
- const btn = "bg-[#1e1e1e] text-white px-2 py-1.5 rounded hover:bg-[#555] transition";
+ const btn = "bg-[#1e1e1e] text-white px-2 py-1.5 rounded hover:bg-[#555] transition ";
 
-
-  return (
+   return (
     <div className="h-[50px] bg-[#1e1e1e] text-white flex items-center justify-between px-5 border-b border-[#333] flex-shrink-0 gap-2 relative z-50">
 
   {/* Left group: LOGICKNOTS + LeftSidebar + Icons */}
@@ -131,9 +131,9 @@ const ComponentPanel = ({
       
 
   <div className="flex items-center gap-2">
-  <Tooltip text="Download Schematic">
+  <Tooltip text="Download Netlist">
     <button
-      className="bg-[#1e1e1e] text-white px-2 py-1.5 rounded hover:bg-[#555] transition "
+      className={btn}
       onClick={onDownloadClick}
     >
       <FaDownload size={15} />
@@ -142,7 +142,7 @@ const ComponentPanel = ({
 
   <Tooltip text="Rotate 90° CW">
     <button
-      className="bg-[#1e1e1e] text-white px-2 py-1.5 rounded hover:bg-[#555] transition"
+      className={btn}
       onClick={() => onRotateClick("cw")}
     >
       <MdRotateRight size={20} />
@@ -151,7 +151,7 @@ const ComponentPanel = ({
 
   <Tooltip text="Rotate 90° CCW">
     <button
-      className="bg-[#1e1e1e] text-white px-2 py-1.5 rounded hover:bg-[#555] transition"
+     className={btn}
       onClick={() => onRotateClick("ccw")}
     >
       <MdRotateLeft size={20} />
@@ -160,7 +160,7 @@ const ComponentPanel = ({
 
   <Tooltip text="Delete Selected">
     <button
-      className="bg-[#1e1e1e] text-white px-2 py-1.5 rounded hover:bg-[#c23] transition"
+      className={btn}
       onClick={onDeleteClick}
     >
       <FaTrashAlt size={14} />
@@ -169,7 +169,7 @@ const ComponentPanel = ({
 
   <Tooltip text="Clear All">
     <button
-      className="bg-[#1e1e1e] text-white px-2 py-1.5 rounded hover:bg-[#c23] transition"
+     className={btn}
       onClick={onClearAllClick}
     >
       <FaBroom size={16} />
@@ -178,7 +178,7 @@ const ComponentPanel = ({
 
   <Tooltip text="Fit to Screen">
     <button
-      className="bg-[#1e1e1e] text-white px-2 py-1.5 rounded hover:bg-[#555] transition"
+      className={btn}
       onClick={onResetViewClick}
     >
       <ResetViewSquare size={18} />
@@ -188,7 +188,7 @@ const ComponentPanel = ({
      {/* NEW: View waveform button */}
           <Tooltip text="View waveform">
             <button
-              className="bg-[#1e1e1e] text-white px-2 py-1.5 rounded hover:bg-[#555] transition"
+              className={btn}
               onClick={() => console.log("waveform clicked")}
               aria-label="View waveform"
               
@@ -214,7 +214,7 @@ const ComponentPanel = ({
 
            <Tooltip text="Undo">
             <button
-            className="bg-[#1e1e1e] text-white px-2 py-1.5 rounded hover:bg-[#555] transition" 
+            className={btn} 
             onClick={() => console.log('clicked: undo')} 
             >
            <MdUndo size={18} />
@@ -223,16 +223,24 @@ const ComponentPanel = ({
 
           <Tooltip text="Redo">
             <button 
-            className="bg-[#1e1e1e] text-white px-2 py-1.5 rounded hover:bg-[#555] transition" 
+            className={btn} 
             onClick={() => console.log('clicked: redo')} 
             >
             <MdRedo size={18} />
             </button>
           </Tooltip>
+          <Tooltip text="Download Schematic">
+          <button
+            className={btn}
+            onClick={() => openDesignDownload(canvasRef)}
+          >
+            <FaDownload size={15} />
+          </button>
+        </Tooltip>
           <Tooltip text="Upload Schematic">
             <button 
-            className="bg-[#1e1e1e] text-white px-2 py-1.5 rounded hover:bg-[#555] transition" 
-            onClick={() => console.log('clicked: upload')} 
+            className={btn} 
+            onClick={() => triggerDesignUpload(canvasRef)} 
             >
             <FaUpload size={15} />
             </button>
@@ -248,7 +256,6 @@ const ComponentPanel = ({
 
     {/* green underline fixed to panel */}
 <div className="absolute left-0 bottom-0 w-full h-[1px] bg-green-500 pointer-events-none" />
-
   </div>
   );
 };

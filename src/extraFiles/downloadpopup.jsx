@@ -46,7 +46,7 @@ export default function DownloadPopup({
       <div className="relative w-[min(92vw,520px)] rounded-2xl border border-neutral-800 bg-neutral-900/95 text-neutral-100 shadow-2xl">
         <div className="px-6 pt-6 pb-4">
           <h3 className="text-lg font-semibold tracking-wide">
-            Download Schematic
+            Download Netlist
           </h3>
           <p className="mt-1 text-sm text-neutral-400">
             Enter a <span className="font-medium text-neutral-200">Cell Name</span> (letters/digits).
@@ -84,7 +84,7 @@ export default function DownloadPopup({
             className={`rounded-lg px-4 py-2 text-sm font-semibold transition active:translate-y-[1px]
               ${
                 isValid
-                  ? "bg-emerald-500 text-emerald-950 hover:bg-emerald-400"
+                  ? "bg-green-500 text-emerald-950 hover:bg-green-400"
                   : "cursor-not-allowed bg-emerald-700/40 text-emerald-200/40"
               }`}
           >
