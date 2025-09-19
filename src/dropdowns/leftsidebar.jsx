@@ -6,11 +6,11 @@ import inductorIcon from "../assets/icons8-inductor-64.png";
 import capacitorIcon from "../assets/icons8-capacitor-64.png"
 import resistorIcon from "../assets/icons8-resistor-64.png";
 import diodeIcon from "../assets/icons8-diode-64.png";
-import nmosIcon from "../assets/IconNmos.png";
-import pmosIcon from "../assets/IconPmos.png";
-import inIcon from "../assets/IconIn.png";
-import outIcon from "../assets/IconOut.png";
-import inoutIcon from "../assets/IconInout.png";
+import nmosIcon from "../assets/iconNmos.png";
+import pmosIcon from "../assets/iconPmos.png";
+import inIcon from "../assets/iconIn.png";
+import outIcon from "../assets/iconOut.png";
+import inoutIcon from "../assets/iconInout.png";
 import vssiIcon from "../assets/iconVssi.png";
 import dcIcon from "../assets/iconDc.png";
 import notIcon from "../assets/iconNot.png";
