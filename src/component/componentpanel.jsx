@@ -1,0 +1,256 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { FaDownload, FaTrashAlt,  FaBroom, FaUpload } from 'react-icons/fa';
+import { MdRotateRight, MdRotateLeft, MdUndo, MdRedo } from "react-icons/md";
+import { FiEye } from "react-icons/fi";
+import Tooltip from '../extraFiles/tooltip';
+import Toggle from '../dropdowns/toggle';
+import LeftSidebar from '../dropdowns/leftsidebar';
+import { Cpu } from 'lucide-react';
+
+// import { LuLaptop } from 'react-icons/lu';
+// Square-with-corners icon (matches 18px toolbar size)
+const ResetViewSquare = ({ size = 18 }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 18 18"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden="true"
+    focusable="false"
+  >
+    {/* outer square */}
+    <rect x="2" y="2" width="14" height="14" rx="2"
+          stroke="currentColor" strokeWidth="2" />
+
+    {/* subtle inner fill */}
+    <rect x="3.5" y="3.5" width="11" height="11" rx="1.5"
+          fill="currentColor" opacity="0.12" />
+
+    {/* small filled corners */}
+    <rect x="3.5" y="3.5" width="3" height="3" rx="0.8"
+          fill="currentColor" opacity="0.35" />
+    <rect x="11.5" y="3.5" width="3" height="3" rx="0.8"
+          fill="currentColor" opacity="0.35" />
+    <rect x="3.5" y="11.5" width="3" height="3" rx="0.8"
+          fill="currentColor" opacity="0.35" />
+    <rect x="11.5" y="11.5" width="3" height="3" rx="0.8"
+          fill="currentColor" opacity="0.35" />
+  </svg>
+);
+
+// Tiny chart icon (waveform)
+const WaveformIcon = ({ size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+    <path d="M3 3v18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    <polyline points="5,16 8,12 11,14 14,9 17,11 20,7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+  </svg>
+);
+
+// Small circular badge
+// --- replace old LetterBadge component ---
+const LetterBadge = ({ label }) => (
+  <span className="text-[12px] font-bold leading-none select-none">{label}</span>
+);
+
+
+// Single composite button: Eye + Letter
+const EyeLetterBtn = ({ label, onClick }) => (
+  <button
+    className="bg-[#1e1e1e] text-white px-2 py-1.5 rounded hover:bg-[#555] transition flex items-center gap-1"
+    onClick={onClick}>
+    <FiEye size={15} />
+    <LetterBadge label={label} />
+  </button>
+);
+
+const ComponentPanel = ({ 
+  canvasRef,
+  onResistorClick,
+  onCapacitorClick,
+  onInductorClick,
+  onDiodeClick,
+  onNPNClick,
+  onPNPClick,
+  onNMOSClick,
+  onPMOSClick,
+  onINClick,
+  onOUTClick,
+  onInOutClick,
+  onVDCClick,
+  onVSSIClick,
+  onVDDIClick,
+  // onANDClick,
+  // onORClick,
+  onNOTClick,
+  onNANDClick,
+  onNORClick,
+  onXORClick,
+  onDownloadClick, 
+  onRotateClick,
+  onDeleteClick,
+  onClearAllClick,
+  onResetViewClick
+  }) => {
+  
+
+ const btn = "bg-[#1e1e1e] text-white px-2 py-1.5 rounded hover:bg-[#555] transition";
+
+
+  return (
+    <div className="h-[50px] bg-[#1e1e1e] text-white flex items-center justify-between px-5 border-b border-[#333] flex-shrink-0 gap-2 relative z-50">
+
+  {/* Left group: LOGICKNOTS + LeftSidebar + Icons */}
+  <div className="flex items-center gap-3">
+    <div className="flex items-center gap-2 font-bold text-lg tracking-wide">
+      <Cpu size={20} className="text-green-500" />
+      <span>
+        LOG<span className="text-green-500">IC</span>KNOTS
+      </span>
+    </div>
+      <LeftSidebar
+         onResistorClick={onResistorClick}
+         onCapacitorClick={onCapacitorClick}
+         onInductorClick={onInductorClick}
+         onDiodeClick={onDiodeClick}
+         onNPNClick={onNPNClick}
+         onPNPClick={onPNPClick}
+         onNMOSClick={onNMOSClick}
+         onPMOSClick={onPMOSClick}
+         onINClick={onINClick}
+         onOUTClick={onOUTClick}
+         onInOutClick={onInOutClick}
+         onVDCClick={onVDCClick}
+         onVSSIClick={onVSSIClick}
+         onVDDIClick={onVDDIClick}
+         onNOTClick={onNOTClick}
+         onNANDClick={onNANDClick}
+         onNORClick={onNORClick}
+         onXORClick={onXORClick}
+       />
+      
+
+  <div className="flex items-center gap-2">
+  <Tooltip text="Download Schematic">
+    <button
+      className="bg-[#1e1e1e] text-white px-2 py-1.5 rounded hover:bg-[#555] transition "
+      onClick={onDownloadClick}
+    >
+      <FaDownload size={15} />
+    </button>
+  </Tooltip>
+
+  <Tooltip text="Rotate 90° CW">
+    <button
+      className="bg-[#1e1e1e] text-white px-2 py-1.5 rounded hover:bg-[#555] transition"
+      onClick={() => onRotateClick("cw")}
+    >
+      <MdRotateRight size={20} />
+    </button>
+  </Tooltip>
+
+  <Tooltip text="Rotate 90° CCW">
+    <button
+      className="bg-[#1e1e1e] text-white px-2 py-1.5 rounded hover:bg-[#555] transition"
+      onClick={() => onRotateClick("ccw")}
+    >
+      <MdRotateLeft size={20} />
+    </button>
+  </Tooltip>
+
+  <Tooltip text="Delete Selected">
+    <button
+      className="bg-[#1e1e1e] text-white px-2 py-1.5 rounded hover:bg-[#c23] transition"
+      onClick={onDeleteClick}
+    >
+      <FaTrashAlt size={14} />
+    </button>
+  </Tooltip>
+
+  <Tooltip text="Clear All">
+    <button
+      className="bg-[#1e1e1e] text-white px-2 py-1.5 rounded hover:bg-[#c23] transition"
+      onClick={onClearAllClick}
+    >
+      <FaBroom size={16} />
+    </button>
+  </Tooltip>
+
+  <Tooltip text="Fit to Screen">
+    <button
+      className="bg-[#1e1e1e] text-white px-2 py-1.5 rounded hover:bg-[#555] transition"
+      onClick={onResetViewClick}
+    >
+      <ResetViewSquare size={18} />
+    </button>
+  </Tooltip>
+
+     {/* NEW: View waveform button */}
+          <Tooltip text="View waveform">
+            <button
+              className="bg-[#1e1e1e] text-white px-2 py-1.5 rounded hover:bg-[#555] transition"
+              onClick={() => console.log("waveform clicked")}
+              aria-label="View waveform"
+              
+            >
+              <WaveformIcon size={18} />
+            </button>
+          </Tooltip>
+           {/* SINGLE BUTTONS: Eye + N / D / P */}
+          <Tooltip text="Visible Net">
+            <EyeLetterBtn label="N" onClick={() => console.log('clicked: show N')} />
+          </Tooltip>
+
+          <Tooltip text="Visible Device">
+            <EyeLetterBtn label="D" onClick={() => console.log('clicked: show D')} />
+          </Tooltip>
+
+          <Tooltip text="Visible Property">
+            <EyeLetterBtn label="P" onClick={() => console.log('clicked: show P')} />
+          </Tooltip>
+          <Tooltip text="Visible Cellname">
+            <EyeLetterBtn label="C" onClick={() => console.log('clicked: show C')} />
+          </Tooltip>
+
+           <Tooltip text="Undo">
+            <button
+            className="bg-[#1e1e1e] text-white px-2 py-1.5 rounded hover:bg-[#555] transition" 
+            onClick={() => console.log('clicked: undo')} 
+            >
+           <MdUndo size={18} />
+            </button>
+          </Tooltip>
+
+          <Tooltip text="Redo">
+            <button 
+            className="bg-[#1e1e1e] text-white px-2 py-1.5 rounded hover:bg-[#555] transition" 
+            onClick={() => console.log('clicked: redo')} 
+            >
+            <MdRedo size={18} />
+            </button>
+          </Tooltip>
+          <Tooltip text="Upload Schematic">
+            <button 
+            className="bg-[#1e1e1e] text-white px-2 py-1.5 rounded hover:bg-[#555] transition" 
+            onClick={() => console.log('clicked: upload')} 
+            >
+            <FaUpload size={15} />
+            </button>
+          </Tooltip>
+
+      </div>
+      </div>
+
+ {/* Right group: Toggle */}
+    <div className="flex items-center">
+      <Toggle canvasRef={canvasRef} />
+    </div>
+
+    {/* green underline fixed to panel */}
+<div className="absolute left-0 bottom-0 w-full h-[1px] bg-green-500 pointer-events-none" />
+
+  </div>
+  );
+};
+
+export default ComponentPanel;
