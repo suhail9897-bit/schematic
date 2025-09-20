@@ -45,7 +45,7 @@ ctx.fillStyle = isSelected ? 'yellow' : '#ccc';
   ctx.fill();
 
   // 🏷️ Label
-  ctx.font = `${8 / scale}px sans-serif`;
+  ctx.font = `${10}px sans-serif`;
   ctx.fillStyle = isSelected ? 'yellow' : '#ccc';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';

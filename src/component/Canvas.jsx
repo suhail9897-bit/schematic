@@ -121,6 +121,12 @@ const Canvas = React.forwardRef((props, ref) => {
       setVdcFromUI:  (p) => engineRef.current?.setVdcFromUI?.(p),
       exportDesignFile: () => engineRef.current?.buildDesignSnapshot?.(),
       importDesignFile: (data) => engineRef.current?.loadDesignSnapshot?.(data),
+      setNetLabelsVisible: (v) => engineRef.current?.setNetLabelsVisible?.(v),
+      getNetLabelsVisible: () => engineRef.current?.getNetLabelsVisible?.(),
+      setDeviceLabelsVisible: (v) => engineRef.current?.setDeviceLabelsVisible?.(v),
+      getDeviceLabelsVisible: () => engineRef.current?.getDeviceLabelsVisible?.(),
+      toggleDeviceLabelsVisible: () => engineRef.current?.toggleDeviceLabelsVisible?.(),
+
 
 
     }),

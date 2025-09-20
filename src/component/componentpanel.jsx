@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FaDownload, FaTrashAlt,  FaBroom, FaUpload } from 'react-icons/fa';
 import { MdRotateRight, MdRotateLeft, MdUndo, MdRedo } from "react-icons/md";
-import { FiEye } from "react-icons/fi";
+import { FiEye,  FiEyeOff } from "react-icons/fi";
 import Tooltip from '../extraFiles/tooltip';
 import Toggle from '../dropdowns/toggle';
 import LeftSidebar from '../dropdowns/leftsidebar';
@@ -56,11 +56,11 @@ const LetterBadge = ({ label }) => (
 
 
 // Single composite button: Eye + Letter
-const EyeLetterBtn = ({ label, onClick }) => (
+const EyeLetterBtn = ({ label, onClick, open = true }) => (
   <button
     className="bg-[#1e1e1e] text-white px-2 py-1.5 rounded hover:bg-[#555] transition flex items-center gap-1"
     onClick={onClick}>
-    <FiEye size={15} />
+    {open ? <FiEye size={15} /> : <FiEyeOff size={15} />}
     <LetterBadge label={label} />
   </button>
 );
@@ -96,6 +96,18 @@ const ComponentPanel = ({
   
 
  const btn = "bg-[#1e1e1e] text-white px-2 py-1.5 rounded hover:bg-[#555] transition ";
+ const [netsVisible, setNetsVisible] = useState(true);
+  useEffect(() => {
+    const v = canvasRef?.current?.getNetLabelsVisible?.();
+    if (typeof v === 'boolean') setNetsVisible(v);
+  }, [canvasRef]);
+
+// NEW: device-name visibility state (for D eye icon)
+const [devicesVisible, setDevicesVisible] = useState(true);
+useEffect(() => {
+  const d = canvasRef?.current?.getDeviceLabelsVisible?.();
+  if (typeof d === 'boolean') setDevicesVisible(d);
+}, [canvasRef]);
 
    return (
     <div className="h-[50px] bg-[#1e1e1e] text-white flex items-center justify-between px-5 border-b border-[#333] flex-shrink-0 gap-2 relative z-50">
@@ -198,12 +210,29 @@ const ComponentPanel = ({
           </Tooltip>
            {/* SINGLE BUTTONS: Eye + N / D / P */}
           <Tooltip text="Visible Net">
-            <EyeLetterBtn label="N" onClick={() => console.log('clicked: show N')} />
+             <EyeLetterBtn
+            label="N"
+            open={netsVisible}
+            onClick={() => {
+              const next = !netsVisible;
+              setNetsVisible(next);
+              canvasRef?.current?.setNetLabelsVisible?.(next);
+            }}
+          />
           </Tooltip>
 
           <Tooltip text="Visible Device">
-            <EyeLetterBtn label="D" onClick={() => console.log('clicked: show D')} />
-          </Tooltip>
+          <EyeLetterBtn
+            label="D"
+            open={devicesVisible}
+            onClick={() => {
+              const next = !devicesVisible;
+              setDevicesVisible(next);
+              // use setter to stay in sync with state
+              canvasRef.current?.setDeviceLabelsVisible?.(next);
+            }}
+          />
+        </Tooltip>
 
           <Tooltip text="Visible Property">
             <EyeLetterBtn label="P" onClick={() => console.log('clicked: show P')} />

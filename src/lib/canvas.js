@@ -113,8 +113,8 @@ class CanvasUtils {
     this.scale = 1;
     this.offsetX = canvas.width / 2;
     this.offsetY = canvas.height / 2;
-    
-
+    this.showNetLabels = true;
+    this.showDeviceLabels = true;
     this.components = [];        // ✅ All resistors
     this.selected = null;        // ✅ Currently selected
     this.selectedTerminals = []; // store selected terminals
@@ -140,7 +140,26 @@ class CanvasUtils {
     this.canvas.addEventListener("mousemove", this.handleMouseMove.bind(this));
     this.canvas.addEventListener("mouseup", this.handleMouseUp.bind(this));
   }
+// ======= LABELS HIDE/SHOW =======
+setDeviceLabelsVisible(v) {
+  this.showDeviceLabels = !!v;
+  this.draw();
+}
+getDeviceLabelsVisible() {
+  return !!this.showDeviceLabels;
+}
+toggleDeviceLabelsVisible() {
+  this.setDeviceLabelsVisible(!this.getDeviceLabelsVisible());
+}
 
+// ======= NET NAMES VISIBLE/HIDE =======
+   setNetLabelsVisible(v) {
+    this.showNetLabels = !!v;
+    this.draw();
+  }
+  getNetLabelsVisible() {
+    return !!this.showNetLabels;
+  }
 
   // ======= DESIGN FILE: EXPORT / IMPORT =======
 
@@ -586,38 +605,30 @@ setDiodeAreaFromUI(payload) {
   this.draw();
 }
   // Render label text for any component
+// find your existing getDisplayLabel(comp) and replace its body with:
 getDisplayLabel(comp) {
-  // For resistor: "<label> (<value>)"
-  if (comp.type === "resistor") {
-  const base = comp.label || "R";
-  const val = this._resValueLabel(comp);
-  return `${base}${val ? ` (${val})` : ""}`;
+  const type = String(comp?.type || '').toLowerCase();
+  const namesOn = this.showDeviceLabels !== false;
+
+  // Utility: read normalized value text you already store on VM
+  const valTxt =
+    type === 'resistor'  ? (comp?.resistor?.valueLabel || comp?.valueLabel || comp?.value || '') :
+    type === 'capacitor' ? (comp?.capacitor?.valueLabel || comp?.valueLabel || comp?.value || '') :
+    type === 'inductor'  ? (comp?.inductor?.valueLabel  || comp?.valueLabel || comp?.value || '') :
+    '';
+
+  // R / C / L: show "R1 (10Ω)" normally; when hidden show only "10Ω"
+  if (type === 'resistor' || type === 'capacitor' || type === 'inductor') {
+    const base = String(comp?.label || '').trim();             // e.g. R1 / C1 / L1
+    if (!namesOn) return valTxt || '';                         // value only
+    return valTxt ? `${base} (${valTxt})` : base;
+  }
+
+  // Diode & others that use this helper: hide completely when names off
+  const base = String(comp?.label || '').trim();
+  return namesOn ? base : '';
 }
 
-
- if (comp.type === "capacitor") {
-  const base = comp.label || "C";
-  const val  = this._capValueLabel(comp);
-  return `${base}${val ? ` (${val})` : ""}`;
-}
-
-    // NEW: inductor
- if (comp.type === "inductor") {
-  const base = comp.label || "L";
-  const val  = this._indValueLabel(comp);
-  return `${base}${val ? ` (${val})` : ""}`;
-}
-
-// diode: show only plain label like "D1"
-if (comp.type === "diode") {
-  const base = String(comp.label || "D").replace(/\s*\([^)]*\)\s*$/, ""); // strip any old "(...)"
-  return base;
-}
-
-
-  // default: just label
-  return comp.label || "";
-}
 
 // "10", "10u", "10µ", "10uF", "10 µF" -> "10µF"
 // decimals allowed; empty -> ""

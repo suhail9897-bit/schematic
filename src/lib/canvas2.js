@@ -41,6 +41,11 @@ export function installDraw(proto) {
     this.ctx.translate(this.offsetX, this.offsetY);
     this.ctx.scale(this.scale, this.scale);
 
+    // helper inside installDraw (add once near the top of the function scope)
+const deviceNamesOn = () => (this.showDeviceLabels !== false);
+const maybeName = (comp, fallback) => deviceNamesOn() ? (comp?.label || fallback) : '';
+
+
     for (const comp of this.components) {
       const isSelected = this.selected === comp;
 
@@ -93,33 +98,33 @@ export function installDraw(proto) {
         drawWithRotation((cx, cy) =>
           drawDiode(this.ctx, cx, cy, this.scale, this.getDisplayLabel(comp), isSelected));
       } else if (comp.type === 'npn') {
-        drawWithRotation((cx, cy) => drawNPN(this.ctx, cx, cy, this.scale, comp.label || 'NPN', isSelected));
+        drawWithRotation((cx, cy) => drawNPN(this.ctx,  cx, cy, this.scale, maybeName(comp, 'NPN'),  isSelected));
       } else if (comp.type === 'pnp') {
-        drawWithRotation((cx, cy) => drawPNP(this.ctx, cx, cy, this.scale, comp.label || 'PNP', isSelected));
+        drawWithRotation((cx, cy) => drawPNP(this.ctx,  cx, cy, this.scale, maybeName(comp, 'PNP'),  isSelected));
       } else if (comp.type === 'nmos') {
-        drawWithRotation((cx, cy) => drawNMOS(this.ctx, cx, cy, this.scale, comp.label || 'NMOS', isSelected));
+        drawWithRotation((cx, cy) => drawNMOS(this.ctx, cx, cy, this.scale, maybeName(comp, 'NMOS'), isSelected));
       } else if (comp.type === 'pmos') {
-        drawWithRotation((cx, cy) => drawPMOS(this.ctx, cx, cy, this.scale, comp.label || 'PMOS', isSelected));
+        drawWithRotation((cx, cy) => drawPMOS(this.ctx, cx, cy, this.scale, maybeName(comp, 'PMOS'), isSelected));
       } else if (comp.type === 'in') {
-        drawWithRotation((cx, cy) => drawIN(this.ctx, cx, cy, this.scale, comp.label || 'IN', isSelected));
+        drawWithRotation((cx, cy) => drawIN(this.ctx,  cx, cy, this.scale, maybeName(comp, 'IN'),     isSelected));
       } else if (comp.type === 'out') {
-        drawWithRotation((cx, cy) => drawOUT(this.ctx, cx, cy, this.scale, comp.label || 'OUT', isSelected));
+        drawWithRotation((cx, cy) => drawOUT(this.ctx, cx, cy, this.scale, maybeName(comp, 'OUT'),    isSelected));
       } else if (comp.type === 'in-out') {
-        drawWithRotation((cx, cy) => drawInOut(this.ctx, cx, cy, this.scale, comp.label || 'IN-OUT', isSelected));
+        drawWithRotation((cx, cy) => drawInOut(this.ctx, cx, cy, this.scale, maybeName(comp, 'IN-OUT'), isSelected));
       } else if (comp.type === 'vdc') {
-        drawWithRotation((cx, cy) => drawVDC(this.ctx, cx, cy, this.scale, comp.label || 'VDC', isSelected));
+        drawWithRotation((cx, cy) => drawVDC(this.ctx, cx, cy, this.scale, maybeName(comp, 'VDC'), isSelected));
       } else if (comp.type === 'vssi') {
-        drawWithRotation((cx, cy) => drawVSSI(this.ctx, cx, cy, this.scale, comp.label || 'VSSI', isSelected));
+        drawWithRotation((cx, cy) => drawVSSI(this.ctx, cx, cy, this.scale, maybeName(comp, 'VSSI'), isSelected));
       } else if (comp.type === 'vddi') {
-        drawWithRotation((cx, cy) => drawVDDI(this.ctx, cx, cy, this.scale, comp.label || 'VDDI', isSelected));
+        drawWithRotation((cx, cy) => drawVDDI(this.ctx, cx, cy, this.scale, maybeName(comp, 'VDDI'), isSelected));
       } else if (comp.type === 'not') {
-        drawWithRotation((cx, cy) => drawNOT(this.ctx, cx, cy, this.scale, comp.label || 'NOT', isSelected));
+        drawWithRotation((cx, cy) => drawNOT(this.ctx, cx, cy, this.scale, maybeName(comp, 'NOT'), isSelected));
       } else if (comp.type === 'nand') {
-        drawWithRotation((cx, cy) => drawNAND(this.ctx, cx, cy, this.scale, comp.label || 'NAND', isSelected, comp));
+        drawWithRotation((cx, cy) => drawNAND(this.ctx, cx, cy, this.scale, maybeName(comp, 'NAND'), isSelected, comp));
       } else if (comp.type === 'nor') {
-        drawWithRotation((cx, cy) => drawNOR(this.ctx, cx, cy, this.scale, comp.label || 'NOR', isSelected, comp));
+        drawWithRotation((cx, cy) => drawNOR(this.ctx, cx, cy, this.scale, maybeName(comp, 'NOR'), isSelected, comp));
       } else if (comp.type === 'xor') {
-        drawWithRotation((cx, cy) => drawXOR(this.ctx, cx, cy, this.scale, comp.label || 'XOR', isSelected, comp));
+        drawWithRotation((cx, cy) => drawXOR(this.ctx, cx, cy, this.scale, maybeName(comp, 'XOR'), isSelected, comp));
       } else {
         const text = this.getDisplayLabel
           ? this.getDisplayLabel(comp)
@@ -135,11 +140,17 @@ export function installDraw(proto) {
           const globalY = comp.y + terminal.y;
 
           this.ctx.font = `${12}px sans-serif`;
-          this.ctx.fillStyle = 'cyan';
+          this.ctx.fillStyle = 'transparent';
           this.ctx.textAlign = 'center';
           this.ctx.textBaseline = 'bottom';
           this.ctx.fillText(terminal.netLabel, globalX, globalY - 8);
-
+          if (this.showNetLabels) {
+           this.ctx.font = `${12}px sans-serif`;
+           this.ctx.fillStyle = 'cyan';
+           this.ctx.textAlign = 'center';
+           this.ctx.textBaseline = 'bottom';
+           this.ctx.fillText(terminal.netLabel, globalX, globalY - 8);
+         }
           this.ctx.beginPath();
           this.ctx.arc(globalX, globalY, 2 / this.scale, 0, Math.PI * 2);
           this.ctx.fill();

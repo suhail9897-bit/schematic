@@ -207,7 +207,7 @@ export default function LeftSidebar({
   onINClick, onOUTClick, onInOutClick, onVDCClick, onVSSIClick, onVDDIClick,
   onNOTClick, onNANDClick, onNORClick, onXORClick,
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
 
   return (
     <div className="relative inline-block text-left">
