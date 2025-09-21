@@ -111,8 +111,24 @@ const maybeName = (comp, fallback) => deviceNamesOn() ? (comp?.label || fallback
         drawWithRotation((cx, cy) => drawOUT(this.ctx, cx, cy, this.scale, maybeName(comp, 'OUT'),    isSelected));
       } else if (comp.type === 'in-out') {
         drawWithRotation((cx, cy) => drawInOut(this.ctx, cx, cy, this.scale, maybeName(comp, 'IN-OUT'), isSelected));
-      } else if (comp.type === 'vdc') {
-        drawWithRotation((cx, cy) => drawVDC(this.ctx, cx, cy, this.scale, maybeName(comp, 'VDC'), isSelected));
+    } else if (comp.type === 'vdc') {
+  const volts = Number.isFinite(Number(comp?.vdc?.V ?? comp?.vdc?.value ?? comp?.value))
+    ? Number(comp?.vdc?.V ?? comp?.vdc?.value ?? comp?.value)
+    : 1;
+  const name = (comp?.label || 'V1').replace(/\s*\(.*?\)\s*$/, '');
+
+  drawWithRotation((cx, cy) =>
+    drawVDC(
+      this.ctx, cx, cy, this.scale,
+      name,
+      isSelected,
+      {
+        valueText: `${volts} V`,                  // value hamesha dikhe
+        showName: (this.showDeviceLabels !== false) // D-eye toggle
+      }
+    )
+  );
+
       } else if (comp.type === 'vssi') {
         drawWithRotation((cx, cy) => drawVSSI(this.ctx, cx, cy, this.scale, maybeName(comp, 'VSSI'), isSelected));
       } else if (comp.type === 'vddi') {

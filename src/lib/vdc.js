@@ -1,4 +1,4 @@
-export function drawVDC(ctx, x, y, scale = 1, label = 'VDC', isSelected = false) {
+export function drawVDC(ctx, x, y, scale = 1, label = 'VDC', isSelected = false, opts = {}) {
   ctx.save();
   ctx.translate(x, y);
 
@@ -37,10 +37,20 @@ export function drawVDC(ctx, x, y, scale = 1, label = 'VDC', isSelected = false)
   // - symbol
   ctx.fillText('-', 12, 4);
 
-  // Label
-  ctx.font = '12px sans-serif';
-  ctx.fillStyle = labelColor;
-  ctx.fillText(label, 0, 34);
+ // --- Label compose (single line):
+ // Names ON  -> "V1 (1 V)"
+ // Names OFF -> "1 V"
+ const showName  = opts?.showName !== false;                 // default: true
+ const nameText  = showName ? (label || 'V1') : '';
+ const valueText = (typeof opts?.valueText === 'string' && opts.valueText.trim())
+                   ? opts.valueText.trim() : '';
+ const finalText = nameText
+   ? (valueText ? `${nameText} (${valueText})` : nameText)
+   : valueText;
+
+ ctx.font = '12px sans-serif';
+ ctx.fillStyle = nameText ? labelColor : textColor;
+ if (finalText) ctx.fillText(finalText, 0, 34);
 
   // Right wire
   ctx.strokeStyle = strokeColor;
@@ -83,9 +93,9 @@ export function getVdcVMFor(comp) {
 // getVdcVMFor(...)
 let name = (comp.label || 'V1').replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 6) || 'V';
 if (!name.startsWith('V')) name = 'V' + name;   // NEW
-comp.vdc = { name, V: volts };
-comp.value = String(volts);
-comp.label = `${name} (${volts} V)`;
+   comp.vdc   = { name, V: volts, value: volts }; // keep both V & value
+   comp.value = String(volts);
+   comp.label = name;  
 
   }
 
@@ -111,8 +121,8 @@ if (patch.volts != null) {
   volts = Math.max(0, Math.min(5, v));           // already present
   volts = Math.round(volts * 1000) / 1000;       // tidy
 }
-comp.vdc = { name, V: volts };
-comp.value = String(volts);
-comp.label = `${name} (${volts} V)`;
+  comp.vdc   = { name, V: volts, value: volts };   // keep both for netlist
+  comp.value = String(volts);
+  comp.label = name;  
 
 }
