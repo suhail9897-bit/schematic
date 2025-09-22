@@ -53,7 +53,7 @@ export function drawNOR(ctx, centerX, centerY, scale = 1, label = 'NOR', isSelec
   }
 
   // Label
-  ctx.font = `${14 }px sans-serif`;
+  ctx.font = `${12}px sans-serif`;
   ctx.fillStyle = isSelected ? 'yellow' : '#ccc';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';

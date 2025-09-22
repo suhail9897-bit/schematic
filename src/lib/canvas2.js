@@ -43,7 +43,30 @@ export function installDraw(proto) {
 
     // helper inside installDraw (add once near the top of the function scope)
 const deviceNamesOn = () => (this.showDeviceLabels !== false);
-const maybeName = (comp, fallback) => deviceNamesOn() ? (comp?.label || fallback) : '';
+const propsOn = () => (this.showPropertyLabels !== false);
+
+// Device name shown by D-eye; W/L suffix only if P-eye is on
+// Device name shown by D-eye; W/L line must stay even if D-eye is off (when P-eye is on)
+const mosLabel = (comp, fallback) => {
+  const base = (this.showDeviceLabels !== false) ? (comp?.label || fallback) : '';
+
+  // read W/L from nmos/pmos bag
+  const bag = comp?.nmos || comp?.pmos || {};
+  const W = Number.isFinite(+bag.W) ? +bag.W : 1;
+  const L = Number.isFinite(+bag.L) ? +bag.L : 1;
+
+  // If properties eye is off → only name (or empty if name hidden)
+  if (this.showPropertyLabels === false) return base;
+
+  // Properties eye is ON:
+  const wl = `w:${W} L:${L}`;
+  // If name is visible, append; if name is hidden, show only W/L
+  return base ? `${base} ${wl}` : wl;
+};
+
+const maybeName = (comp, fallback) =>
+  deviceNamesOn() ? (comp?.label || fallback) : '';
+  const propsText = (txt) => (propsOn() ? txt : '');
 
 
     for (const comp of this.components) {
@@ -83,14 +106,16 @@ const maybeName = (comp, fallback) => deviceNamesOn() ? (comp?.label || fallback
 
       // type-wise drawing (body unchanged)
       if (comp.type === 'capacitor') {
-        const text = this.getDisplayLabel
-          ? this.getDisplayLabel(comp)
-          : `${comp.label || 'C'}${comp.value ? ` (${comp.value})` : ''}`;
+  let text = this.getDisplayLabel
+    ? this.getDisplayLabel(comp)
+    : `${comp.label || 'C'}${comp.value ? ` (${comp.value})` : ''}`;
+  if (!propsOn()) text = text.replace(/\s*\(.*?\)\s*$/, ''); // drop (value)
         drawWithRotation((cx, cy) => drawCapacitor(this.ctx, cx, cy, this.scale, text, isSelected));
       } else if (comp.type === 'inductor') {
-        const text = this.getDisplayLabel
-          ? this.getDisplayLabel(comp)
-          : `${comp.label || 'L'}${comp.value ? ` (${comp.value})` : ''}`;
+  let text = this.getDisplayLabel
+    ? this.getDisplayLabel(comp)
+    : `${comp.label || 'L'}${comp.value ? ` (${comp.value})` : ''}`;
+  if (!propsOn()) text = text.replace(/\s*\(.*?\)\s*$/, '');
         drawWithRotation((cx, cy) => drawInductor(this.ctx, cx, cy, this.scale, text, isSelected));
       } else if (comp.type === 'diode') {
         this._ensureDiodeFixed(comp);
@@ -102,9 +127,9 @@ const maybeName = (comp, fallback) => deviceNamesOn() ? (comp?.label || fallback
       } else if (comp.type === 'pnp') {
         drawWithRotation((cx, cy) => drawPNP(this.ctx,  cx, cy, this.scale, maybeName(comp, 'PNP'),  isSelected));
       } else if (comp.type === 'nmos') {
-        drawWithRotation((cx, cy) => drawNMOS(this.ctx, cx, cy, this.scale, maybeName(comp, 'NMOS'), isSelected));
+        drawWithRotation((cx, cy) => drawNMOS(this.ctx, cx, cy, this.scale, mosLabel(comp, 'NMOS'), isSelected));
       } else if (comp.type === 'pmos') {
-        drawWithRotation((cx, cy) => drawPMOS(this.ctx, cx, cy, this.scale, maybeName(comp, 'PMOS'), isSelected));
+        drawWithRotation((cx, cy) => drawPMOS(this.ctx, cx, cy, this.scale, mosLabel(comp, 'PMOS'), isSelected));
       } else if (comp.type === 'in') {
         drawWithRotation((cx, cy) => drawIN(this.ctx,  cx, cy, this.scale, maybeName(comp, 'IN'),     isSelected));
       } else if (comp.type === 'out') {
@@ -116,35 +141,98 @@ const maybeName = (comp, fallback) => deviceNamesOn() ? (comp?.label || fallback
     ? Number(comp?.vdc?.V ?? comp?.vdc?.value ?? comp?.value)
     : 1;
   const name = (comp?.label || 'V1').replace(/\s*\(.*?\)\s*$/, '');
+  const showProps = (this.showPropertyLabels !== false);       // 👈 P-eye toggle
+  const showNames = (this.showDeviceLabels   !== false);  
 
-  drawWithRotation((cx, cy) =>
-    drawVDC(
-      this.ctx, cx, cy, this.scale,
-      name,
-      isSelected,
-      {
-        valueText: `${volts} V`,                  // value hamesha dikhe
-        showName: (this.showDeviceLabels !== false) // D-eye toggle
-      }
-    )
-  );
-
+  drawWithRotation((cx, cy) => drawVDC(this.ctx, cx, cy, this.scale, name,isSelected,{
+        valueText: showProps ? `${volts} V` : '',                // hide when properties are off
+    showName: showNames, 
+        showValue: propsOn()
+      }));
       } else if (comp.type === 'vssi') {
         drawWithRotation((cx, cy) => drawVSSI(this.ctx, cx, cy, this.scale, maybeName(comp, 'VSSI'), isSelected));
       } else if (comp.type === 'vddi') {
         drawWithRotation((cx, cy) => drawVDDI(this.ctx, cx, cy, this.scale, maybeName(comp, 'VDDI'), isSelected));
       } else if (comp.type === 'not') {
         drawWithRotation((cx, cy) => drawNOT(this.ctx, cx, cy, this.scale, maybeName(comp, 'NOT'), isSelected));
-      } else if (comp.type === 'nand') {
-        drawWithRotation((cx, cy) => drawNAND(this.ctx, cx, cy, this.scale, maybeName(comp, 'NAND'), isSelected, comp));
+     } else if (comp.type === 'nand') {
+  drawWithRotation((cx, cy) => {
+    // 1) NAND gate + name (as-is)
+    drawNAND(this.ctx, cx, cy, this.scale, maybeName(comp, 'NAND'), isSelected, comp);
+
+    // 2) Properties line (SEPARATE from the name)
+    const n = comp.nand || {};
+    const Wn = Number.isFinite(n.Wn) ? n.Wn : 1;
+    const Wp = Number.isFinite(n.Wp) ? n.Wp : 2;
+    const L  = Number.isFinite(n.L)  ? n.L  : 1;
+    const m  = Number.isFinite(n.m)  ? n.m  : 1;
+
+    const props = `wn:${Wn} wp:${Wp} L:${L} m:${m}`;
+    const yOff  = 42; // gate ke niche; aap is value ko apni pasand se tweak kar sakte ho
+
+    this.ctx.font = `${12}px sans-serif`;
+    this.ctx.fillStyle = isSelected ? 'yellow' : '#ccc';
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'top';
+    if (propsOn()) {
+  this.ctx.fillText(props, cx, cy + yOff);
+}
+
+  });
+
       } else if (comp.type === 'nor') {
-        drawWithRotation((cx, cy) => drawNOR(this.ctx, cx, cy, this.scale, maybeName(comp, 'NOR'), isSelected, comp));
+  drawWithRotation((cx, cy) => {
+    // 1) NAND gate + name (as-is)
+    drawNOR(this.ctx, cx, cy, this.scale, maybeName(comp, 'NOR'), isSelected, comp);
+
+    // 2) Properties line (SEPARATE from the name)
+    const n = comp.nor || {};
+    const Wn = Number.isFinite(n.Wn) ? n.Wn : 1;
+    const Wp = Number.isFinite(n.Wp) ? n.Wp : 2;
+    const L  = Number.isFinite(n.L)  ? n.L  : 1;
+    const m  = Number.isFinite(n.m)  ? n.m  : 1;
+
+    const props = `wn:${Wn} wp:${Wp} L:${L} m:${m}`;
+    const yOff  = 42; // gate ke niche; aap is value ko apni pasand se tweak kar sakte ho
+
+    this.ctx.font = `${12}px sans-serif`;
+    this.ctx.fillStyle = isSelected ? 'yellow' : '#ccc';
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'top';
+    if (propsOn()) {
+  this.ctx.fillText(props, cx, cy + yOff);
+}
+
+  });
       } else if (comp.type === 'xor') {
-        drawWithRotation((cx, cy) => drawXOR(this.ctx, cx, cy, this.scale, maybeName(comp, 'XOR'), isSelected, comp));
-      } else {
-        const text = this.getDisplayLabel
-          ? this.getDisplayLabel(comp)
-          : `${comp.label || 'R'}${comp.value ? ` (${comp.value})` : ''}`;
+  drawWithRotation((cx, cy) => {
+    // 1) NAND gate + name (as-is)
+    drawXOR(this.ctx, cx, cy, this.scale, maybeName(comp, 'XOR'), isSelected, comp);
+
+    // 2) Properties line (SEPARATE from the name)
+    const n = comp.xor || {};
+    const Wn = Number.isFinite(n.Wn) ? n.Wn : 1;
+    const Wp = Number.isFinite(n.Wp) ? n.Wp : 2;
+    const L  = Number.isFinite(n.L)  ? n.L  : 1;
+    const m  = Number.isFinite(n.m)  ? n.m  : 1;
+
+    const props = `wn:${Wn} wp:${Wp} L:${L} m:${m}`;
+    const yOff  = 42; // gate ke niche; aap is value ko apni pasand se tweak kar sakte ho
+
+    this.ctx.font = `${12}px sans-serif`;
+    this.ctx.fillStyle = isSelected ? 'yellow' : '#ccc';
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'top';
+    if (propsOn()) {
+  this.ctx.fillText(props, cx, cy + yOff);
+}
+
+  });
+     } else {
+  let text = this.getDisplayLabel
+    ? this.getDisplayLabel(comp)
+    : `${comp.label || 'R'}${comp.value ? ` (${comp.value})` : ''}`;
+  if (!propsOn()) text = text.replace(/\s*\(.*?\)\s*$/, '');
         drawWithRotation((cx, cy) => drawResistor(this.ctx, cx, cy, this.scale, text, isSelected));
       }
 

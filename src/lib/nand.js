@@ -53,7 +53,7 @@ export function drawNAND(ctx, centerX, centerY, scale = 1, label = 'NAND', isSel
   ctx.fill();
 
   // label
-  ctx.font = `${14 / scale}px sans-serif`;
+  ctx.font = `${14}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
   ctx.fillText(label, centerX, centerY - 10);

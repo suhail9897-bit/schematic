@@ -59,11 +59,11 @@ ctx.fillStyle = isSelected ? 'yellow' : '#ccc';
   ctx.fill();
 
   // Label
-  ctx.font = `${14 / scale}px sans-serif`;
+  ctx.font = `${12}px sans-serif`;
   ctx.fillStyle = isSelected ? 'yellow' : '#ccc';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'bottom';
-  ctx.fillText(label, centerX + 24, centerY - 10);
+  ctx.textAlign = 'start';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, centerX + 2, centerY );
 
   ctx.restore();
 }

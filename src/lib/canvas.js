@@ -115,6 +115,7 @@ class CanvasUtils {
     this.offsetY = canvas.height / 2;
     this.showNetLabels = true;
     this.showDeviceLabels = true;
+    this.showPropertyLabels = true; 
     this.components = [];        // ✅ All resistors
     this.selected = null;        // ✅ Currently selected
     this.selectedTerminals = []; // store selected terminals
@@ -139,6 +140,15 @@ class CanvasUtils {
     this.canvas.addEventListener("mousedown", this.handleMouseDown.bind(this));
     this.canvas.addEventListener("mousemove", this.handleMouseMove.bind(this));
     this.canvas.addEventListener("mouseup", this.handleMouseUp.bind(this));
+  }
+
+
+ setPropertyLabelsVisible(v) {
+    this.showPropertyLabels = !!v;
+    this.draw();
+  }
+  getPropertyLabelsVisible() {
+    return !!this.showPropertyLabels;
   }
 // ======= LABELS HIDE/SHOW =======
 setDeviceLabelsVisible(v) {
@@ -608,23 +618,34 @@ setDiodeAreaFromUI(payload) {
 // find your existing getDisplayLabel(comp) and replace its body with:
 getDisplayLabel(comp) {
   const type = String(comp?.type || '').toLowerCase();
-  const namesOn = this.showDeviceLabels !== false;
+  const namesOn = this.showDeviceLabels !== false;     // eye for device names
+  const propsOn = this.showPropertyLabels !== false;   // eye for values
 
-  // Utility: read normalized value text you already store on VM
+  // Normalized value text you already store on VM
   const valTxt =
-    type === 'resistor'  ? (comp?.resistor?.valueLabel || comp?.valueLabel || comp?.value || '') :
+    type === 'resistor'  ? (comp?.resistor?.valueLabel  || comp?.valueLabel || comp?.value || '') :
     type === 'capacitor' ? (comp?.capacitor?.valueLabel || comp?.valueLabel || comp?.value || '') :
     type === 'inductor'  ? (comp?.inductor?.valueLabel  || comp?.valueLabel || comp?.value || '') :
     '';
 
-  // R / C / L: show "R1 (10Ω)" normally; when hidden show only "10Ω"
+  // R / C / L: combine name + (value) depending on both toggles
   if (type === 'resistor' || type === 'capacitor' || type === 'inductor') {
-    const base = String(comp?.label || '').trim();             // e.g. R1 / C1 / L1
-    if (!namesOn) return valTxt || '';                         // value only
+    const base = String(comp?.label || '').trim(); // e.g. R1 / C1 / L1
+
+    // both off -> show nothing
+    if (!namesOn && !propsOn) return '';
+
+    // only values on
+    if (!namesOn && propsOn) return valTxt || '';
+
+    // only names on
+    if (namesOn && !propsOn) return base;
+
+    // both on
     return valTxt ? `${base} (${valTxt})` : base;
   }
 
-  // Diode & others that use this helper: hide completely when names off
+  // Others that use this helper: obey names toggle as before
   const base = String(comp?.label || '').trim();
   return namesOn ? base : '';
 }

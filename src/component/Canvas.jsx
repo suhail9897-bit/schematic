@@ -126,6 +126,8 @@ const Canvas = React.forwardRef((props, ref) => {
       setDeviceLabelsVisible: (v) => engineRef.current?.setDeviceLabelsVisible?.(v),
       getDeviceLabelsVisible: () => engineRef.current?.getDeviceLabelsVisible?.(),
       toggleDeviceLabelsVisible: () => engineRef.current?.toggleDeviceLabelsVisible?.(),
+      setPropertyLabelsVisible: (v) => engineRef.current?.setPropertyLabelsVisible?.(v),
+      getPropertyLabelsVisible: () => engineRef.current?.getPropertyLabelsVisible?.(),
 
 
 

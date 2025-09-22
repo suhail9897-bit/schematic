@@ -104,9 +104,12 @@ const ComponentPanel = ({
 
 // NEW: device-name visibility state (for D eye icon)
 const [devicesVisible, setDevicesVisible] = useState(true);
+const [propsVisible, setPropsVisible] = useState(true);
 useEffect(() => {
   const d = canvasRef?.current?.getDeviceLabelsVisible?.();
   if (typeof d === 'boolean') setDevicesVisible(d);
+  const p = canvasRef?.current?.getPropertyLabelsVisible?.();
+  if (typeof p === 'boolean') setPropsVisible(p);
 }, [canvasRef]);
 
    return (
@@ -234,9 +237,17 @@ useEffect(() => {
           />
         </Tooltip>
 
-          <Tooltip text="Visible Property">
-            <EyeLetterBtn label="P" onClick={() => console.log('clicked: show P')} />
-          </Tooltip>
+            <Tooltip text="Visible Property">
+    <EyeLetterBtn
+      label="P"
+      open={propsVisible}
+      onClick={() => {
+        const next = !propsVisible;
+        setPropsVisible(next);
+        canvasRef?.current?.setPropertyLabelsVisible?.(next);
+      }}
+    />
+  </Tooltip>
           <Tooltip text="Visible Cellname">
             <EyeLetterBtn label="C" onClick={() => console.log('clicked: show C')} />
           </Tooltip>
