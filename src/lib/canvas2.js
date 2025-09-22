@@ -30,6 +30,8 @@ function areBoxesOverlapping(a, b, boxSize = 120) {
   );
 }
 
+
+
 // Install only the draw() method on the prototype (mixin style)
 export function installDraw(proto) {
   proto.draw = function draw() {
@@ -44,6 +46,25 @@ export function installDraw(proto) {
     // helper inside installDraw (add once near the top of the function scope)
 const deviceNamesOn = () => (this.showDeviceLabels !== false);
 const propsOn = () => (this.showPropertyLabels !== false);
+// Unit-aware value label for R/C/L. Prefers comp.valueMeta from editors.
+function valueLabelFor(comp) {
+  const strip = (n) => String(+(+n).toFixed(2))
+    .replace(/\.00$/, '')
+    .replace(/(\.\d*[1-9])0$/, '$1');
+
+  if (comp?.valueMeta?.unit) {
+    return `${strip(comp.valueMeta.magnitude)}${comp.valueMeta.unit}`;
+  }
+  if (typeof comp?.value === "string") return comp.value;
+
+  // fallback if valueMeta not set (still add a unit)
+  const u = comp.type === 'resistor' ? 'Ω' :
+            comp.type === 'capacitor' ? 'F' :
+            comp.type === 'inductor' ? 'H' : '';
+  if (typeof comp?.value === "number") return strip(comp.value) + u;
+  return "";
+}
+
 
 // Device name shown by D-eye; W/L suffix only if P-eye is on
 // Device name shown by D-eye; W/L line must stay even if D-eye is off (when P-eye is on)
@@ -67,6 +88,8 @@ const mosLabel = (comp, fallback) => {
 const maybeName = (comp, fallback) =>
   deviceNamesOn() ? (comp?.label || fallback) : '';
   const propsText = (txt) => (propsOn() ? txt : '');
+
+
 
 
     for (const comp of this.components) {
@@ -106,17 +129,17 @@ const maybeName = (comp, fallback) =>
 
       // type-wise drawing (body unchanged)
       if (comp.type === 'capacitor') {
-  let text = this.getDisplayLabel
-    ? this.getDisplayLabel(comp)
-    : `${comp.label || 'C'}${comp.value ? ` (${comp.value})` : ''}`;
-  if (!propsOn()) text = text.replace(/\s*\(.*?\)\s*$/, ''); // drop (value)
-        drawWithRotation((cx, cy) => drawCapacitor(this.ctx, cx, cy, this.scale, text, isSelected));
+const nameC = deviceNamesOn() ? (comp.label || 'C') : '';
+const valC  = propsOn() ? ` (${valueLabelFor(comp)})` : '';
+const text  = `${nameC}${valC}`;
+drawWithRotation((cx, cy) => drawCapacitor(this.ctx, cx, cy, this.scale, text, isSelected));
+
       } else if (comp.type === 'inductor') {
-  let text = this.getDisplayLabel
-    ? this.getDisplayLabel(comp)
-    : `${comp.label || 'L'}${comp.value ? ` (${comp.value})` : ''}`;
-  if (!propsOn()) text = text.replace(/\s*\(.*?\)\s*$/, '');
-        drawWithRotation((cx, cy) => drawInductor(this.ctx, cx, cy, this.scale, text, isSelected));
+ const nameL = deviceNamesOn() ? (comp.label || 'L') : '';
+const valL  = propsOn() ? ` (${valueLabelFor(comp)})` : '';
+const text  = `${nameL}${valL}`;
+drawWithRotation((cx, cy) => drawInductor(this.ctx, cx, cy, this.scale, text, isSelected));
+
       } else if (comp.type === 'diode') {
         this._ensureDiodeFixed(comp);
         this._ensureDiodeSize(comp);
@@ -229,11 +252,11 @@ const maybeName = (comp, fallback) =>
 
   });
      } else {
-  let text = this.getDisplayLabel
-    ? this.getDisplayLabel(comp)
-    : `${comp.label || 'R'}${comp.value ? ` (${comp.value})` : ''}`;
-  if (!propsOn()) text = text.replace(/\s*\(.*?\)\s*$/, '');
-        drawWithRotation((cx, cy) => drawResistor(this.ctx, cx, cy, this.scale, text, isSelected));
+  const nameR = deviceNamesOn() ? (comp.label || 'R') : '';
+const valR  = propsOn() ? ` (${valueLabelFor(comp)})` : '';
+const text  = `${nameR}${valR}`;
+drawWithRotation((cx, cy) => drawResistor(this.ctx, cx, cy, this.scale, text, isSelected));
+
       }
 
       // terminal net labels + dots

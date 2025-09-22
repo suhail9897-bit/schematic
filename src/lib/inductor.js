@@ -110,10 +110,9 @@ export function setIndValueFromUIFor(comp, { unit, magnitude }) {
 }
 
 export function indValueLabel(comp) {
-  if (comp?.valueMeta?.unit) {
-    return `${stripZeros(comp.valueMeta.magnitude)}${comp.valueMeta.unit}`;
-  }
-  if (typeof comp?.value === "string") return comp.value; // back-compat
-  if (typeof comp?.value === "number") return stripZeros(comp.value) + "H";
+  const strip = (n) => String(+(+n).toFixed(2)).replace(/\.00$/,'').replace(/(\.\d*[1-9])0$/,'$1');
+  if (comp?.valueMeta?.unit) return `${strip(comp.valueMeta.magnitude)}${comp.valueMeta.unit}`;
+  if (typeof comp?.value === "string") return comp.value;
+  if (typeof comp?.value === "number") return strip(comp.value) + "H";
   return "";
 }
