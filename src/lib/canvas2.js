@@ -17,7 +17,7 @@ import { drawNOT } from './not';
 import { drawNAND } from './nand';
 import { drawNOR } from './nor';
 import { drawXOR } from './xor';
-import { aStarOrthogonalPath } from './wire.js';
+import { aStarOrthogonalPath, hitTestAllWires } from './wire.js';
 
 // same utility logic used in original file
 function areBoxesOverlapping(a, b, boxSize = 120) {
@@ -338,8 +338,16 @@ export function installHandleMouseDown(proto) {
   proto.handleMouseDown = function handleMouseDown(e) {
     const { x, y } = this.toWorldCoords(e.offsetX, e.offsetY);
     // console.log(this.components);
-
+   // ---- wire hit-test (before clearing selection / before terminal checks) ----
+   const hit = hitTestAllWires(this.wires, x, y, 6);
+if (hit && hit.wire) {
+  this._wireHit = { x: hit.point.x, y: hit.point.y, wireId: hit.wire.id, segmentIndex: hit.segmentIndex };
+  if (this.uiHooks?.onWireHit) this.uiHooks.onWireHit({ x: hit.point.x, y: hit.point.y });
+  this.draw();
+  return;
+}
     let clickedOnTerminal = false;
+    
 
     // 🟡 First check if clicked on any terminal
     for (const comp of this.components) {

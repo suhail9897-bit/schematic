@@ -1,82 +1,76 @@
 // E:\schematic\vite-project\src\lib\canvas.js
 import {
-  drawResistor,
-  getResistorTerminals,
+    getResistorTerminals,
   getResValueVMFor,
   setResValueFromUIFor,
   resValueLabel
 } from './resistor';
 
-
 import {
-  drawCapacitor,
-  getCapacitorTerminals,
+    getCapacitorTerminals,
   getCapValueVMFor,
   setCapValueFromUIFor,
   capValueLabel
 } from './capacitor';
+
 import {
-  drawInductor,
-  getInductorTerminals,
+    getInductorTerminals,
   getIndValueVMFor,
   setIndValueFromUIFor,
   indValueLabel
 } from './inductor';
-// lib/canvas.js
+
 import {
-  drawDiode,
   getDiodeTerminals,
   getDiodeAreaVMFor,
   setDiodeAreaFromUIFor,
-  ensureDiodeFixedFor,
-  ensureDiodeSizeFor,
-} from "./diode";
+  } from "./diode";
 
-import { drawNPN,
+import { 
    getNPNTerminals,
    getNpnAreaVMFor,
    setNpnAreaFromUIFor 
   } from './npn';
 
-import { drawPNP,
+import {
    getPNPTerminals, 
    getPNPAreaVMFor, 
    setPNPAreaFromUIFor
    } from './pnp';
 
-import { drawNMOS,
+import { 
    getNMOSTerminals,
    getNmosVMFor,
    setNmosFromUIFor 
   } from './nmos';
 
 
-import { drawPMOS,
+import { 
     getPMOSTerminals,
     getPmosVMFor,
     setPmosFromUIFor 
   } from './pmos';
 
-import { drawIN, getINTerminals } from './in';
-import { drawOUT, getOUTTerminals } from './out';
-import { drawInOut, getINOUTTerminals } from './in-out';
+import {  getINTerminals } from './in';
+import {  getOUTTerminals } from './out';
+import {  getINOUTTerminals } from './in-out';
 
-import { drawVDC,
+import { 
    getVDCTerminals,
    getVdcVMFor, 
    setVdcFromUIFor  
   } from './vdc';
 
-import { drawVSSI, getVSSITerminals } from './vssi';
-import { drawVDDI, getVDDITerminals } from './vdd';
-import { drawAND, getANDTerminals } from './and';
-import { drawOR, getORTerminals } from './or';
-import { drawNOT,
+import {  getVSSITerminals } from './vssi';
+import {  getVDDITerminals } from './vdd';
+import {  getANDTerminals } from './and';
+import {  getORTerminals } from './or';
+import { 
    getNOTTerminals,
    getNotVMFor,
    setNotFromUIFor
   } from './not';
-import { drawNAND,
+import { 
    getNANDTerminals,
    getNandVMFor,
    setNandFromUIFor 
@@ -84,19 +78,18 @@ import { drawNAND,
 
 
 import { 
-  drawNOR,
   getNORTerminals,
   getNorVMFor,
   setNorFromUIFor
  } from './nor';
 
-import { drawXOR,
+import { 
    getXORTerminals,
    getXorVMFor,
    setXorFromUIFor 
   } from './xor';
 
-import { aStarOrthogonalPath, pathIntersectsComponent } from './wire.js';
+import { aStarOrthogonalPath,  deleteWireById, hitTestAllWires} from './wire.js';
 import throttle from 'lodash/throttle';
 
 import { installDraw,
@@ -120,6 +113,8 @@ class CanvasUtils {
     this.selected = null;        // ✅ Currently selected
     this.selectedTerminals = []; // store selected terminals
     this.wires = [];
+    this._wireHit = null;
+    this.uiHooks = null;
     this.dragging = false;       // ✅ Dragging flag
     this.resistorCount = 0;
     this.capacitorCount = 0; 
@@ -142,6 +137,9 @@ class CanvasUtils {
     this.canvas.addEventListener("mouseup", this.handleMouseUp.bind(this));
   }
 
+
+  //wire deletion helpers 
+  
 
  setPropertyLabelsVisible(v) {
     this.showPropertyLabels = !!v;
@@ -772,6 +770,40 @@ getSelectedSnapshot() {
 
   return snap;
 }
+
+getWireCutAnchor() {
+  return this._wireHit ? { ...this._wireHit } : null;
+}
+
+clearWireCut() {
+  this._wireHit = null;
+  if (this.uiHooks?.onWireHit) this.uiHooks.onWireHit(null);
+  this.draw();
+}
+
+cutSelectedWire() {
+  if (!this._wireHit) return;
+  const id = this._wireHit.wireId;
+  this._wireHit = null;
+  if (this.uiHooks?.onWireHit) this.uiHooks.onWireHit(null);
+
+  // delete + recompute nets + redraw
+  const idx = this.wires.findIndex(w => w.id === id);
+  if (idx >= 0) {
+    // prefer helper
+    try {
+      deleteWireById(this, id);
+      return;
+    } catch (_) {
+      // fallback: local delete
+      this.wires.splice(idx, 1);
+      this.recomputeNets?.();
+      this.draw();
+    }
+  }
+}
+
+
 
 // Helper: when terminal net name changes, reflect on connected wires too
 _updateWireLabelsFor(compId, terminalIndex, newNet) {

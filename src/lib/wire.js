@@ -173,3 +173,67 @@ function isInsideComponent(point, components, buffer = 10) {
   }
   return false;
 }
+
+//wire deletion code added 
+// ---------- Hit-test & delete helpers for wires ----------
+
+// Distance of point P to line segment AB, also returns closest point.
+export function pointToSegmentInfo(px, py, ax, ay, bx, by) {
+  const APx = px - ax, APy = py - ay;
+  const ABx = bx - ax, ABy = by - ay;
+  const ab2 = ABx*ABx + ABy*ABy || 1e-9;
+  let t = (APx*ABx + APy*ABy) / ab2;
+  if (t < 0) t = 0; else if (t > 1) t = 1;
+  const qx = ax + t*ABx, qy = ay + t*ABy;
+  const dx = px - qx, dy = py - qy;
+  return { dist: Math.hypot(dx, dy), qx, qy, t };
+}
+
+// Given a wire (with pathPoints or endpoints), test click proximity.
+export function hitTestWireAt(wire, worldX, worldY, tol = 6) {
+  // ✅ Prefer wire.path (jo tum save karte ho), then pathPoints, else give up
+  const pts =
+    (Array.isArray(wire.path) && wire.path.length >= 2 && wire.path) ||
+    (Array.isArray(wire.pathPoints) && wire.pathPoints.length >= 2 && wire.pathPoints) ||
+    [];
+
+  if (pts.length < 2) return null;
+
+
+  let best = null;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i], b = pts[i + 1];
+    const info = pointToSegmentInfo(worldX, worldY, a.x, a.y, b.x, b.y);
+    if (info.dist <= tol) {
+      if (!best || info.dist < best.dist) {
+        best = { segmentIndex: i, point: { x: info.qx, y: info.qy }, dist: info.dist };
+      }
+    }
+  }
+  return best; // null if miss
+}
+
+// Iterate all wires; return nearest hit with wire reference.
+export function hitTestAllWires(wires, worldX, worldY, tol = 6) {
+  let ans = null;
+  for (const w of wires || []) {
+    const r = hitTestWireAt(w, worldX, worldY, tol);
+    if (r) {
+      if (!ans || r.dist < ans.dist) ans = { wire: w, ...r };
+    }
+  }
+  return ans;
+}
+
+// Delete by id from canvas-like host that has .wires, .recomputeNets(), .draw()
+export function deleteWireById(host, wireId) {
+  if (!host || !host.wires) return;
+  const idx = host.wires.findIndex(w => w.id === wireId);
+  if (idx >= 0) {
+    host.wires.splice(idx, 1);
+    // IMPORTANT: recompute net labels after topology change
+    if (typeof host.recomputeNets === 'function') host.recomputeNets();
+    if (typeof host.draw === 'function') host.draw();
+  }
+}
+

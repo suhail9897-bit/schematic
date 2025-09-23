@@ -6,7 +6,6 @@ import Tooltip from '../extraFiles/tooltip';
 import Toggle from '../dropdowns/toggle';
 import LeftSidebar from '../dropdowns/leftsidebar';
 import { Cpu } from 'lucide-react';
-import DesignPopup from '../extraFiles/designpopup';
 import { openDesignDownload, triggerDesignUpload } from '../extraFiles/designpopup';
 
 // Square-with-corners icon (matches 18px toolbar size)

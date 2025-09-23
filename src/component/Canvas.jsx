@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useImperativeHandle, useState } from "react";
 import CanvasEngine from "../lib/canvas";
 import DownloadPopup from "../extraFiles/downloadpopup";
 import { buildAndDownloadNetlist } from "./netlist";
+import ScissorButton from "../extraFiles/Scissor";
 
 const Canvas = React.forwardRef((props, ref) => {
   const canvasRef = useRef(null);
@@ -10,6 +11,7 @@ const Canvas = React.forwardRef((props, ref) => {
 
    const [askNameOpen, setAskNameOpen] = useState(false);
    const [proposedCell, setProposedCell] = useState("");
+   const [scissorAnchor, setScissorAnchor] = useState(null);
 
 
   useEffect(() => {
@@ -40,6 +42,17 @@ const Canvas = React.forwardRef((props, ref) => {
 
     return () => {
       if (roRef.current) roRef.current.disconnect();
+    };
+  }, []);
+
+    // 🔗 Wire-cut overlay hook: engine -> React
+  useEffect(() => {
+    if (!engineRef.current) return;
+    engineRef.current.uiHooks = {
+      onWireHit: (anchor) => setScissorAnchor(anchor) // null ya {x,y}
+    };
+    return () => {
+      if (engineRef.current) engineRef.current.uiHooks = null;
     };
   }, []);
 
@@ -129,15 +142,40 @@ const Canvas = React.forwardRef((props, ref) => {
       setPropertyLabelsVisible: (v) => engineRef.current?.setPropertyLabelsVisible?.(v),
       getPropertyLabelsVisible: () => engineRef.current?.getPropertyLabelsVisible?.(),
 
-
-
     }),
     []
   );
+  const scPos = React.useMemo(() => {
+  const e = engineRef.current;
+  const c = canvasRef.current;
+  const a = scissorAnchor;
+  if (!e || !c || !a) return null;
+
+  // canvas rect (viewport me where the canvas sits)
+  const rect = c.getBoundingClientRect();
+
+  // engine offsets: (offsetX, offsetY) + scale ka use
+  const left = rect.left + (e.offsetX + a.x * e.scale);
+  const top  = rect.top  + (e.offsetY + a.y * e.scale);
+
+  return { left, top };
+}, [scissorAnchor]);
+
 
    return (
     <>
       <canvas ref={canvasRef} className="flex-1 bg-black block" />
+      {scPos && (
+  <ScissorButton
+    left={scPos.left}
+    top={scPos.top}
+    onClick={() => engineRef.current?.cutSelectedWire?.()}
+    onClose={() => {
+      engineRef.current?.clearWireCut?.();
+      setScissorAnchor(null);
+    }}
+  />
+)}
       <DownloadPopup
         open={askNameOpen}
         initialValue={proposedCell}
