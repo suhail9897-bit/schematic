@@ -319,9 +319,12 @@ function buildNetlistString(engine, rawCellName) {
         const Wp = (comp.nor?.Wp ?? 2) * 1e-6;
         const L  = (comp.nor?.L  ?? 1) * 1e-6;
         const M  = (comp.nor?.m  ?? 1);
+        const vdd = NN(comp.nor?.vddNet || "VDD");
+        const vss = NN(comp.nor?.vssNet || "VSS");
+
         const subckt = hasIn3 ? "NOR3" : "NOR2";
-        const pins = hasIn3 ? [out, in1, in2, in3, "VDD", "VSS"]
-                            : [out, in1, in2,       "VDD", "VSS"];
+        const pins = hasIn3 ? [out, in1, in2, in3,vdd,vss]
+                            : [out, in1, in2,vdd,vss];
         lines.push(`X${name} ${pins.join(' ')} ${subckt} WP=${Wp} WN=${Wn} L=${L} M=${M}`);
         break;
       }

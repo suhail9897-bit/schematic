@@ -94,6 +94,20 @@ function nandTermTitle(selected, idx) {
   }
 }
 
+// helper: friendly titles for NOR terminals
+function norTermTitle(selected, idx) {
+  const nIn = Number(selected?.nor?.inputs || 2);
+  // NOR2: [0=In1, 1=In2, 2=Out]
+  // NOR3: [0=In1, 1=In2, 3=In3, 2=Out]  (output idx=2 fixed)
+  if (nIn === 3) {
+    const map = { 0: "Input 1", 1: "Input 2", 3: "Input 3", 2: "Output" };
+    return map[idx] ?? `Terminal ${idx}`;
+  } else {
+    const map = { 0: "Input 1", 1: "Input 2", 2: "Output" };
+    return map[idx] ?? `Terminal ${idx}`;
+  }
+}
+
 
   return (
     <div className="relative  inline-block text-left">
@@ -266,10 +280,13 @@ function nandTermTitle(selected, idx) {
             {selected && activeTab === "nets" && (
               <>
               {selected.terminals?.map((t) => {
-  const title =
-    selected?.type === "nand"
-      ? nandTermTitle(selected, t.index)
-      : termTitle(selected, t.index); // baaki components ka existing helper
+const title =
+  selected?.type === "nand"
+    ? nandTermTitle(selected, t.index)
+    : selected?.type === "nor"
+    ? norTermTitle(selected, t.index)
+    : termTitle(selected, t.index); // baaki components ka existing helper
+
 
   return (
     <div key={t.index} className="flex items-center gap-2">
@@ -318,7 +335,8 @@ function nandTermTitle(selected, idx) {
       <div className="w-20 text-gray-400 text-xs">Power</div>
       <input
         className="flex-1 bg-[#111] border border-gray-600 rounded px-2 py-1 outline-none focus:border-gray-400"
-        value={selected?.nand?.vddNet ?? "VDD"}
+        value={selected?.nand?.vddNet ?? ""}
+        placeholder="VDD"
         onChange={(e) =>
           canvasRef?.current?.setNandFromUI?.({ vddNet: e.target.value })
         }
@@ -328,7 +346,8 @@ function nandTermTitle(selected, idx) {
       <div className="w-20 text-gray-400 text-xs">Ground</div>
       <input
         className="flex-1 bg-[#111] border border-gray-600 rounded px-2 py-1 outline-none focus:border-gray-400"
-        value={selected?.nand?.vssNet ?? "VSS"}
+        value={selected?.nand?.vssNet ?? ""}
+        placeholder="VSS"
         onChange={(e) =>
           canvasRef?.current?.setNandFromUI?.({ vssNet: e.target.value })
         }
@@ -336,6 +355,30 @@ function nandTermTitle(selected, idx) {
     </div>
   </>
 )}
+{selected?.type === 'nor' && (
+  <>
+    <div className="flex items-center gap-2">
+      <div className="w-20 text-gray-400 text-xs">Power</div>
+      <input
+        className="flex-1 bg-[#111] border border-gray-600 rounded px-2 py-1 outline-none focus:border-gray-400"
+        value={selected?.nor?.vddNet ?? ""}        // <-- was "?? 'VDD'"
+        placeholder="VDD"
+        onChange={(e) => canvasRef?.current?.setNorFromUI?.({ vddNet: e.target.value })}
+      />
+    </div>
+    <div className="flex items-center gap-2">
+      <div className="w-20 text-gray-400 text-xs">Ground</div>
+      <input
+        className="flex-1 bg-[#111] border border-gray-600 rounded px-2 py-1 outline-none focus:border-gray-400"
+        value={selected?.nor?.vssNet ?? ""}        // <-- was "?? 'VSS'"
+        placeholder="VSS"
+        onChange={(e) => canvasRef?.current?.setNorFromUI?.({ vssNet: e.target.value })}
+      />
+    </div>
+  </>
+)}
+
+
 
                 {!selected.terminals?.length && (
                   <div className="text-gray-400">No terminals</div>

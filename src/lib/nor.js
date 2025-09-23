@@ -89,6 +89,9 @@ export function getNorVMFor(comp) {
     Wp: Number.isFinite(n.Wp) ? n.Wp : 2,   // µm
     L:  Number.isFinite(n.L)  ? n.L  : 1,   // µm
     m:  Number.isFinite(n.m)  ? n.m  : 1,   // unitless
+    vddNet: (n.vddNet || "VDD"),
+    vssNet: (n.vssNet || "VSS"),
+
     ranges: {
       L:  { min: 0.05, max: 1000,  step: 0.01 },
       W:  { min: 0.05, max: 10000, step: 0.01 },
@@ -100,13 +103,23 @@ export function getNorVMFor(comp) {
 
 export function setNorFromUIFor(comp, patch = {}) {
   if (!comp) return;
-  if (!comp.nor) comp.nor = { inputs: 2, Wn: 1, Wp: 2, L: 1, m: 1 };
+  if (!comp.nor) comp.nor = { inputs: 2, Wn: 1, Wp: 2, L: 1, m: 1, vddNet: "VDD", vssNet: "VSS" };
 
   if (typeof patch.name !== "undefined") comp.label = sanitizeLabel(patch.name);
   if (typeof patch.Wn  !== "undefined") comp.nor.Wn = toNum(patch.Wn, 0.05, 10000);
   if (typeof patch.Wp  !== "undefined") comp.nor.Wp = toNum(patch.Wp, 0.05, 10000);
   if (typeof patch.L   !== "undefined") comp.nor.L  = toNum(patch.L,  0.05, 1000);
   if (typeof patch.m   !== "undefined") comp.nor.m  = toInt(patch.m,  1,    256); // engine cap
+  
+// NEW: power/ground from Nets/Ports tab
+if (typeof patch.vddNet === "string" || typeof patch.powerNet === "string") {
+  comp.nor.vddNet = (patch.vddNet || patch.powerNet).trim();
+}
+if (typeof patch.vssNet === "string" || typeof patch.groundNet === "string") {
+  comp.nor.vssNet = (patch.vssNet || patch.groundNet).trim();
+}
+
+
 
   if (typeof patch.inputs !== "undefined") {
     const newInputs = (Number(patch.inputs) === 3) ? 3 : 2;
