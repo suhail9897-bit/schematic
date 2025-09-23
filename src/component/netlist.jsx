@@ -340,9 +340,11 @@ function buildNetlistString(engine, rawCellName) {
         const Wp = (comp.xor?.Wp ?? 2) * 1e-6;
         const L  = (comp.xor?.L  ?? 1) * 1e-6;
         const M  = (comp.xor?.m  ?? 1);
+        const vdd = NN(comp.xor?.vddNet || "VDD");
+        const vss = NN(comp.xor?.vssNet || "VSS");
         const subckt = hasIn3 ? "XOR3" : "XOR2";
-        const pins = hasIn3 ? [out, in1, in2, in3, "VDD", "VSS"]
-                            : [out, in1, in2,       "VDD", "VSS"];
+        const pins = hasIn3 ? [out, in1, in2, in3,vdd,vss]
+                            : [out, in1, in2,vdd,vss];
         lines.push(`X${name} ${pins.join(' ')} ${subckt} WP=${Wp} WN=${Wn} L=${L} M=${M}`);
         break;
       }

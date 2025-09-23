@@ -108,6 +108,21 @@ function norTermTitle(selected, idx) {
   }
 }
 
+// helper: friendly titles for XOR terminals
+function xorTermTitle(selected, idx) {
+  const nIn = Number(selected?.xor?.inputs || 2);
+  // XOR2: [0=In1, 1=In2, 2=Out]
+  // XOR3: [0=In1, 1=In2, 3=In3, 2=Out]  (output idx=2 fixed)
+  if (nIn === 3) {
+    const map = { 0: "Input 1", 1: "Input 2", 3: "Input 3", 2: "Output" };
+    return map[idx] ?? `Terminal ${idx}`;
+  } else {
+    const map = { 0: "Input 1", 1: "Input 2", 2: "Output" };
+    return map[idx] ?? `Terminal ${idx}`;
+  }
+}
+
+
 
   return (
     <div className="relative  inline-block text-left">
@@ -283,9 +298,12 @@ function norTermTitle(selected, idx) {
 const title =
   selected?.type === "nand"
     ? nandTermTitle(selected, t.index)
-    : selected?.type === "nor"
+  : selected?.type === "nor"
     ? norTermTitle(selected, t.index)
-    : termTitle(selected, t.index); // baaki components ka existing helper
+  : selected?.type === "xor"
+    ? xorTermTitle(selected, t.index)
+    : termTitle(selected, t.index);
+
 
 
   return (
@@ -377,6 +395,34 @@ const title =
     </div>
   </>
 )}
+
+{selected?.type === 'xor' && (
+  <>
+    <div className="flex items-center gap-2">
+      <div className="w-20 text-gray-400 text-xs">Power</div>
+      <input
+        className="flex-1 bg-[#111] border border-gray-600 rounded px-2 py-1 outline-none focus:border-gray-400"
+        value={selected?.xor?.vddNet ?? ""}         // blank allow
+        placeholder="VDD"
+        onChange={(e) =>
+          canvasRef?.current?.setXorFromUI?.({ vddNet: e.target.value })
+        }
+      />
+    </div>
+    <div className="flex items-center gap-2">
+      <div className="w-20 text-gray-400 text-xs">Ground</div>
+      <input
+        className="flex-1 bg-[#111] border border-gray-600 rounded px-2 py-1 outline-none focus:border-gray-400"
+        value={selected?.xor?.vssNet ?? ""}         // blank allow
+        placeholder="VSS"
+        onChange={(e) =>
+          canvasRef?.current?.setXorFromUI?.({ vssNet: e.target.value })
+        }
+      />
+    </div>
+  </>
+)}
+
 
 
 

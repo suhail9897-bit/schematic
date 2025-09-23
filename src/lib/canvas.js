@@ -767,6 +767,7 @@ getSelectedSnapshot() {
   if (c.type === 'pmos') snap.pmos = { ...(c.pmos || {}) }; // bodyNet, L, W, type...
   if (c.type === 'nand') snap.nand = { ...(c.nand || {}) };
   if (c.type === 'nor') snap.nor = { ...(c.nor || {}) };
+  if (c.type === 'xor') snap.xor = { ...(c.xor || {}) };
 
 
   return snap;

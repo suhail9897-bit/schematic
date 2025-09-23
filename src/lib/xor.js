@@ -92,6 +92,9 @@ export function getXorVMFor(comp) {
     Wp: Number.isFinite(x.Wp) ? x.Wp : 2,    // µm
     L:  Number.isFinite(x.L)  ? x.L  : 1,    // µm
     m:  Number.isFinite(x.m)  ? x.m  : 1,    // –
+    vddNet: (x.vddNet || "VDD"),
+    vssNet: (x.vssNet || "VSS"),
+
     ranges: {
       W: { min: 0.05, max: 10000, step: 0.01 },
       L: { min: 0.05, max: 1000,  step: 0.01 },
@@ -110,6 +113,14 @@ export function setXorFromUIFor(comp, patch = {}) {
   if (patch.Wp   !== undefined) comp.xor.Wp = toNum(patch.Wp, 0.05, 10000);
   if (patch.L    !== undefined) comp.xor.L  = toNum(patch.L,  0.05, 1000);
   if (patch.m    !== undefined) comp.xor.m  = toInt(patch.m,  1,    256); // engine cap
+
+  if (typeof patch.vddNet === "string" || typeof patch.powerNet === "string") {
+  comp.xor.vddNet = (patch.vddNet || patch.powerNet).trim(); // "" allowed
+  }
+  if (typeof patch.vssNet === "string" || typeof patch.groundNet === "string") {
+  comp.xor.vssNet = (patch.vssNet || patch.groundNet).trim(); // "" allowed
+  }
+
 
   if (patch.inputs !== undefined) {
     const newInputs = (Number(patch.inputs) === 3) ? 3 : 2;
