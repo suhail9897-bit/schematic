@@ -106,6 +106,8 @@ export function getNandVMFor(comp) {
     Wp: Number.isFinite(n.Wp) ? n.Wp : 2,   // µm
     L:  Number.isFinite(n.L)  ? n.L  : 1,   // µm
     m:  Number.isFinite(n.m)  ? n.m  : 1,   // parallel fingers
+    vddNet: n.vddNet || "VDD",
+    vssNet: n.vssNet || "VSS",
     // ranges for UI
     ranges: {
       L:  { min: 0.05, max: 1000, step: 0.01 },
@@ -126,7 +128,7 @@ export function setNandFromUIFor(comp, patch = {}) {
 
   // ensure nand bag
   if (!comp.nand) {
-    comp.nand = { inputs: 2, Wn: 1, Wp: 2, L: 1, m: 1 };
+   comp.nand = { inputs: 2, Wn: 1, Wp: 2, L: 1, m: 1, vddNet: "VDD", vssNet: "VSS" };
   }
 
   if (typeof patch.name !== "undefined") {
@@ -138,6 +140,13 @@ export function setNandFromUIFor(comp, patch = {}) {
   if (typeof patch.Wp !== "undefined") comp.nand.Wp = toNum(patch.Wp, 0.05, 10000);
   if (typeof patch.L  !== "undefined") comp.nand.L  = toNum(patch.L,  0.05, 1000);
   if (typeof patch.m  !== "undefined") comp.nand.m  = toInt(patch.m,  1,    256);
+   // NEW: power/ground from Nets/Ports tab
+ if (typeof patch.vddNet === "string" || typeof patch.powerNet === "string") {
+   comp.nand.vddNet = (patch.vddNet ?? patch.powerNet).trim();
+ }
+ if (typeof patch.vssNet === "string" || typeof patch.groundNet === "string") {
+   comp.nand.vssNet = (patch.vssNet ?? patch.groundNet).trim();
+ }
 
   // inputs (2 or 3) — keep output at index 2, preserve existing net labels on 0,1,2
   if (typeof patch.inputs !== "undefined") {

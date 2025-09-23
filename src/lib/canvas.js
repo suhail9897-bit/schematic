@@ -751,16 +751,24 @@ getSelectedSnapshot() {
   const c = this.selected;
   if (!c) return null;
 
-  return {
+  const snap = {
     id: c.id,
     type: c.type,
     label: c.label || "",
     value: c.value || "",
     terminals: (c.terminals || []).map((t, i) => ({
       index: i,
-      netLabel: t.netLabel || `net${i+1}`,
+      netLabel: t.netLabel || `net${i + 1}`,
     })),
   };
+
+  // ✅ Include per-type option bags so UI sees BODY etc.
+  if (c.type === 'nmos') snap.nmos = { ...(c.nmos || {}) }; // bodyNet, L, W, type...
+  if (c.type === 'pmos') snap.pmos = { ...(c.pmos || {}) }; // bodyNet, L, W, type...
+  if (c.type === 'nand') snap.nand = { ...(c.nand || {}) };
+
+
+  return snap;
 }
 
 // Helper: when terminal net name changes, reflect on connected wires too

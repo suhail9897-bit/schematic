@@ -210,7 +210,7 @@ function buildNetlistString(engine, rawCellName) {
         const ng = NN(comp.terminals?.[0]?.netLabel) || "NETG";
         const nd = NN(comp.terminals?.[1]?.netLabel) || "NETD";
         const ns = NN(comp.terminals?.[2]?.netLabel) || "NETS";
-        const nb = ns;
+        const nb = NN(comp.nmos?.bodyNet || "VSS");
         const L_um = comp.nmos?.L ?? 1;
         const W_um = comp.nmos?.W ?? 1;
         const type = comp.nmos?.type === 'HVT' ? 'HVT' : 'LVT';
@@ -238,7 +238,7 @@ function buildNetlistString(engine, rawCellName) {
         const ng = NN(comp.terminals?.[0]?.netLabel) || "NETG";
         const nd = NN(comp.terminals?.[1]?.netLabel) || "NETD";
         const ns = NN(comp.terminals?.[2]?.netLabel) || "NETS";
-        const nb = ns;
+        const nb = NN(comp.pmos?.bodyNet || "VDD"); // NEW: BODY from UI, default VDD
         const L_um = comp.pmos?.L ?? 1;
         const W_um = comp.pmos?.W ?? 1;
         const type = comp.pmos?.type === 'HVT' ? 'HVT' : 'LVT';
@@ -298,9 +298,12 @@ function buildNetlistString(engine, rawCellName) {
         const Wp = (comp.nand?.Wp ?? 2) * 1e-6;
         const L  = (comp.nand?.L  ?? 1) * 1e-6;
         const M  = (comp.nand?.m  ?? 1);
+        const vdd = NN(comp.nand?.vddNet || "VDD");
+        const vss = NN(comp.nand?.vssNet || "VSS");
+
         const subckt = hasIn3 ? "NAND3" : "NAND2";
-        const pins = hasIn3 ? [out, in1, in2, in3, "VDD", "VSS"]
-                            : [out, in1, in2,       "VDD", "VSS"];
+        const pins = hasIn3 ? [out, in1, in2, in3,vdd,vss]
+                            : [out, in1, in2,vdd,vss];
         lines.push(`X${name} ${pins.join(' ')} ${subckt} WP=${Wp} WN=${Wn} L=${L} M=${M}`);
         break;
       }

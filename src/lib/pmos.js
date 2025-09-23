@@ -1,8 +1,7 @@
-export function drawPMOS(ctx, centerX, centerY, scale = 1, label = 'PMOS', isSelected = false) {
+export function drawPMOS(ctx, centerX, centerY, scale = 1, label = 'PMOS', isSelected = false,  opts = {} ) {
   ctx.save();
   ctx.strokeStyle = isSelected ? 'yellow' : 'white';
-ctx.fillStyle = isSelected ? 'yellow' : '#ccc';
-
+  ctx.fillStyle = isSelected ? 'yellow' : '#ccc';
   ctx.lineWidth = 2 / scale;
 
   // Gate Terminal (Left)
@@ -55,11 +54,22 @@ ctx.fillStyle = isSelected ? 'yellow' : '#ccc';
   ctx.fill();
 
   // Label
-  ctx.font = `${12 / scale}px sans-serif`;
+  ctx.font = `${12}px sans-serif`;
   ctx.fillStyle = isSelected ? 'yellow' : '#ccc';
   ctx.textAlign = 'start';
   ctx.textBaseline = 'middle';
   ctx.fillText(label, centerX + 2, centerY);
+  
+ // NEW: BODY/BULK net text just above the main label
+ const bodyTxt = String((opts && opts.bodyText) ?? 'VDD').trim();
+ if (bodyTxt) {
+   ctx.font = `${10}px sans-serif`;
+   ctx.fillStyle = isSelected ? 'cyan' : 'cyan';
+   ctx.textAlign = 'start';
+   ctx.textBaseline = 'bottom';
+   // main label is at (centerY), place BODY slightly above it
+   ctx.fillText(bodyTxt, centerX + 4, centerY - 6);
+ }
 
   ctx.restore();
 }
@@ -89,7 +99,7 @@ export function getPmosVMFor(comp) {
 // ---- UI -> component (write)
 export function setPmosFromUIFor(comp, payload = {}) {
   if (!comp || comp.type !== 'pmos') return;
-  if (!comp.pmos) comp.pmos = { L: 1, W: 1, type: 'LVT' };
+  if (!comp.pmos) comp.pmos = { L: 1, W: 1, type: 'LVT',  bodyNet: 'VDD' };
 
   // label
   if (typeof payload.name === 'string') {
@@ -106,4 +116,8 @@ export function setPmosFromUIFor(comp, payload = {}) {
   if (payload.type === 'HVT' || payload.type === 'LVT') {
     comp.pmos.type = payload.type;
   }
+ // NEW: optional BODY/BULK net name from Nets/Ports
+ if (typeof payload.bodyNet === 'string') {
+   comp.pmos.bodyNet = payload.bodyNet.trim(); // '' allowed
+ }
 }

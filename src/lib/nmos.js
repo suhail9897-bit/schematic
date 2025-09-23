@@ -1,4 +1,4 @@
-export function drawNMOS(ctx, centerX, centerY, scale = 1, label = 'NMOS', isSelected = false) {
+export function drawNMOS(ctx, centerX, centerY, scale = 1, label = 'NMOS', isSelected = false, opts = {}) {
   ctx.save();
   ctx.strokeStyle = isSelected ? 'yellow' : 'white';
 ctx.fillStyle = isSelected ? 'yellow' : '#ccc';
@@ -63,7 +63,18 @@ ctx.fillStyle = isSelected ? 'yellow' : '#ccc';
   ctx.fillStyle = isSelected ? 'yellow' : '#ccc';
   ctx.textAlign = 'start';
   ctx.textBaseline = 'middle';
-  ctx.fillText(label, centerX + 2, centerY );
+  ctx.fillText(label, centerX + 4, centerY );
+
+  // NEW: BODY/BULK net text just above the main label
+ const bodyTxt = String((opts && opts.bodyText) ?? 'VSS').trim();
+ if (bodyTxt) {
+   ctx.font = `${10}px sans-serif`;
+   ctx.fillStyle = isSelected ? 'cyan' : 'cyan';
+   ctx.textAlign = 'start';
+   ctx.textBaseline = 'bottom';
+   // main label is at (centerY), place BODY slightly above it
+   ctx.fillText(bodyTxt, centerX + 2, centerY - 6);
+ }
 
   ctx.restore();
 }
@@ -96,7 +107,7 @@ export function getNmosVMFor(comp) {
 export function setNmosFromUIFor(comp, payload = {}) {
   if (!comp || comp.type !== 'nmos') return;
 
-  if (!comp.nmos) comp.nmos = { L: 1, W: 1, type: 'LVT' };
+  if (!comp.nmos) comp.nmos = { L: 1, W: 1, type: 'LVT', bodyNet: 'VSS' };
 
   // label
   if (typeof payload.name === 'string') {
@@ -112,5 +123,11 @@ export function setNmosFromUIFor(comp, payload = {}) {
 
   if (payload.type === 'HVT' || payload.type === 'LVT') {
     comp.nmos.type = payload.type;
+  }
+   // NEW: BODY/BULK net name from Nets/Ports tab (optional)
+  // keep raw label; netlist will normalize and default to SOURCE if blank
+  if (typeof payload.bodyNet === 'string') {
+    if (!comp.nmos) comp.nmos = { L: 1, W: 1, type: 'LVT' };
+    comp.nmos.bodyNet = payload.bodyNet.trim(); // '' is allowed
   }
 }

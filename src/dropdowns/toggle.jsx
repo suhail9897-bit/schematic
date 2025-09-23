@@ -19,6 +19,9 @@ const Toggle = ({ canvasRef }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("properties");
   const [selected, setSelected] = useState(null);
+  const [bodyNet, setBodyNet]   = useState("VSS"); // NMOS
+  const [pBodyNet, setPBodyNet] = useState("VDD"); // PMOS
+
 
   // Poll selection while dropdown is open (simple & reliable)
   useEffect(() => {
@@ -29,6 +32,29 @@ const Toggle = ({ canvasRef }) => {
     }, 150);
     return () => clearInterval(id);
   }, [isOpen, canvasRef]);
+
+  useEffect(() => {    //for nmos body terminal
+  if (selected?.type === 'nmos') {
+    const cur = selected?.nmos?.bodyNet;
+    const v = (cur ?? "VSS");
+    setBodyNet(v);
+    if (cur == null) {
+      canvasRef?.current?.setNmosFromUI?.({ bodyNet: v });
+    }
+  }
+}, [selected?.id, selected?.type]);
+
+useEffect(() => {    //for pmos body terminal
+  if (selected?.type === 'pmos') {
+    const cur = selected?.pmos?.bodyNet;
+    const v = (cur ?? "VDD");
+    setPBodyNet(v);
+    if (cur == null) {
+      canvasRef?.current?.setPmosFromUI?.({ bodyNet: v });
+    }
+  }
+}, [selected?.id, selected?.type]);
+
 
   const updateSelected = (patch) => {
     canvasRef?.current?.updateSelected?.(patch);
@@ -43,6 +69,31 @@ const Toggle = ({ canvasRef }) => {
   };
 
   const LABEL_MAX = 12;
+  // label helper for nets tab
+const termTitle = (sel, idx) => {
+  const t = String(sel?.type || '').toLowerCase();
+  if (t === 'nmos' || t === 'pmos') {
+    const map = ['GATE', 'DRAIN', 'SOURCE'];
+    return map[idx] ?? `Terminal ${idx}`;
+  }
+  return `Terminal ${idx}`;
+};
+
+
+// helper: friendly titles for NAND terminals
+function nandTermTitle(selected, idx) {
+  const nIn = Number(selected?.nand?.inputs || 2);
+  // NAND2: [0=In1, 1=In2, 2=Out]
+  // NAND3: [0=In1, 1=In2, 3=In3, 2=Out]  (output is fixed at idx=2)
+  if (nIn === 3) {
+    const map = { 0: "Input 1", 1: "Input 2", 3: "Input 3", 2: "Output" };
+    return map[idx] ?? `Terminal ${idx}`;
+  } else {
+    const map = { 0: "Input 1", 1: "Input 2", 2: "Output" };
+    return map[idx] ?? `Terminal ${idx}`;
+  }
+}
+
 
   return (
     <div className="relative  inline-block text-left">
@@ -214,18 +265,78 @@ const Toggle = ({ canvasRef }) => {
 
             {selected && activeTab === "nets" && (
               <>
-                {selected.terminals?.map((t) => (
-                  <div key={t.index} className="flex items-center gap-2">
-                    <div className="w-20 text-gray-400 text-xs">
-                      Terminal {t.index}
-                    </div>
-                    <input
-                      className="flex-1 bg-[#111] border border-gray-600 rounded px-2 py-1 outline-none focus:border-gray-400"
-                      value={t.netLabel || ""}
-                      onChange={(e) => onNetChange(t.index, e.target.value)}
-                    />
-                  </div>
-                ))}
+              {selected.terminals?.map((t) => {
+  const title =
+    selected?.type === "nand"
+      ? nandTermTitle(selected, t.index)
+      : termTitle(selected, t.index); // baaki components ka existing helper
+
+  return (
+    <div key={t.index} className="flex items-center gap-2">
+      <div className="w-20 text-gray-400 text-xs">{title}</div>
+      <input
+        className="flex-1 bg-[#111] border border-gray-600 rounded px-2 py-1 outline-none focus:border-gray-400"
+        value={t.netLabel || ""}
+        onChange={(e) => onNetChange(t.index, e.target.value)}
+      />
+    </div>
+  );
+})}
+
+                  {/* NMOS BODY/BULK net name (netlist-only field) */}
+        {selected?.type === 'nmos' && (
+          <div className="flex items-center gap-2">
+            <div className="w-20 text-gray-400 text-xs">BODY</div>
+            <input
+            className="flex-1 bg-[#111] border border-gray-600 rounded px-2 py-1 outline-none focus:border-gray-400"
+            value={bodyNet}
+            onChange={(e) => {
+              const v = e.target.value;
+              setBodyNet(v);
+              canvasRef?.current?.setNmosFromUI?.({ bodyNet: v });
+            }}
+          />
+          </div>
+        )}
+       {selected?.type === 'pmos' && (
+   <div className="flex items-center gap-2">
+     <div className="w-20 text-gray-400 text-xs">BODY</div>
+     <input
+       className="flex-1 bg-[#111] border border-gray-600 rounded px-2 py-1 outline-none focus:border-gray-400"
+       value={pBodyNet}
+       onChange={(e) => {
+         const v = e.target.value;
+         setPBodyNet(v);                                   // UI stays responsive
+         canvasRef?.current?.setPmosFromUI?.({ bodyNet: v }); // engine state
+       }}
+     />
+   </div>
+ )}
+ {selected?.type === 'nand' && (
+  <>
+    <div className="flex items-center gap-2">
+      <div className="w-20 text-gray-400 text-xs">Power</div>
+      <input
+        className="flex-1 bg-[#111] border border-gray-600 rounded px-2 py-1 outline-none focus:border-gray-400"
+        value={selected?.nand?.vddNet ?? "VDD"}
+        onChange={(e) =>
+          canvasRef?.current?.setNandFromUI?.({ vddNet: e.target.value })
+        }
+      />
+    </div>
+    <div className="flex items-center gap-2">
+      <div className="w-20 text-gray-400 text-xs">Ground</div>
+      <input
+        className="flex-1 bg-[#111] border border-gray-600 rounded px-2 py-1 outline-none focus:border-gray-400"
+        value={selected?.nand?.vssNet ?? "VSS"}
+        onChange={(e) =>
+          canvasRef?.current?.setNandFromUI?.({ vssNet: e.target.value })
+        }
+      />
+    </div>
+  </>
+)}
+
                 {!selected.terminals?.length && (
                   <div className="text-gray-400">No terminals</div>
                 )}
