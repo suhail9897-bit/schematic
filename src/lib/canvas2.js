@@ -329,23 +329,42 @@ drawWithRotation((cx, cy) => drawResistor(this.ctx, cx, cy, this.scale, text, is
     }
 
     this.ctx.restore();
+     if (this.uiHooks?.onViewport) {
+      this.uiHooks.onViewport(this.getViewport());
+    }
   };
 }
 
 
 // Install only handleMouseDown on the prototype (mixin style)
 export function installHandleMouseDown(proto) {
-  proto.handleMouseDown = function handleMouseDown(e) {
+  proto.handleMouseDown = async function handleMouseDown(e) {
     const { x, y } = this.toWorldCoords(e.offsetX, e.offsetY);
     // console.log(this.components);
-   // ---- wire hit-test (before clearing selection / before terminal checks) ----
-   const hit = hitTestAllWires(this.wires, x, y, 6);
-if (hit && hit.wire) {
-  this._wireHit = { x: hit.point.x, y: hit.point.y, wireId: hit.wire.id, segmentIndex: hit.segmentIndex };
-  if (this.uiHooks?.onWireHit) this.uiHooks.onWireHit({ x: hit.point.x, y: hit.point.y });
-  this.draw();
-  return;
+// 🔁 Only on DOUBLE click: wire par scissor dikhao
+if (e.detail >= 2) { // 2nd click within system dblclick threshold
+  try {
+    const { hitTestAllWires } = await import("./wire.js");
+    const hit = hitTestAllWires(this.wires, x, y, 6); // 6px tolerance
+    if (hit && hit.wire) {
+      this._wireHit = {
+        x: hit.point.x,
+        y: hit.point.y,
+        wireId: hit.wire.id,
+        segmentIndex: hit.segmentIndex,
+      };
+      if (this.uiHooks?.onWireHit) this.uiHooks.onWireHit({ x: hit.point.x, y: hit.point.y });
+      this.draw();
+      return; // yahin ruk jao — scissor show ho gaya
+    }
+  } catch(_) {}
 }
+
+// ❌ Single click par kabhi scissor nahi—clear it
+this._wireHit = null;
+if (this.uiHooks?.onWireHit) this.uiHooks.onWireHit(null);
+
+
     let clickedOnTerminal = false;
     
 
@@ -453,6 +472,15 @@ if (hit && hit.wire) {
 
 // Install handleMouseMove, handleMouseUp, handleZoom on the prototype (mixin style)
 export function installMouseMoveUpZoom(proto) {
+   // helper so React side can map world->screen reliably
+  proto.getViewport = function () {
+    return {
+      offsetX: this.offsetX || 0,
+      offsetY: this.offsetY || 0,
+      scale:   this.scale   || this.zoom || 1,
+    };
+  };
+
   proto.handleMouseMove = function handleMouseMove(e) {
     if (!this.dragging || !this.selected) return;
 
@@ -508,5 +536,8 @@ export function installMouseMoveUpZoom(proto) {
     this.scale = newScale;
 
     this.draw();
+      if (this.uiHooks?.onViewport) {
+      this.uiHooks.onViewport(this.getViewport());
+    }
   };
 }

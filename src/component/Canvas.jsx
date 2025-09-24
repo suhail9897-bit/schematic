@@ -12,6 +12,8 @@ const Canvas = React.forwardRef((props, ref) => {
    const [askNameOpen, setAskNameOpen] = useState(false);
    const [proposedCell, setProposedCell] = useState("");
    const [scissorAnchor, setScissorAnchor] = useState(null);
+   const [viewport, setViewport] = useState({ offsetX: 0, offsetY: 0, scale: 1 });
+   const [canvasSize, setCanvasSize] = useState({ w: 0, h: 0 });
 
 
   useEffect(() => {
@@ -47,10 +49,16 @@ const Canvas = React.forwardRef((props, ref) => {
 
     // 🔗 Wire-cut overlay hook: engine -> React
   useEffect(() => {
-    if (!engineRef.current) return;
-    engineRef.current.uiHooks = {
-      onWireHit: (anchor) => setScissorAnchor(anchor) // null ya {x,y}
-    };
+  const eng = engineRef.current;
+  if (!eng) return;
+
+  // preserve anything else already on uiHooks
+  eng.uiHooks = {
+    ...(eng.uiHooks || {}),
+    onWireHit: (anchor) => setScissorAnchor(anchor), // null or {x,y} (WORLD)
+    onViewport: (vp) => setViewport(vp),             // {offsetX, offsetY, scale}
+  };
+
     return () => {
       if (engineRef.current) engineRef.current.uiHooks = null;
     };
@@ -145,27 +153,25 @@ const Canvas = React.forwardRef((props, ref) => {
     }),
     []
   );
+
   const scPos = React.useMemo(() => {
-  const e = engineRef.current;
-  const c = canvasRef.current;
-  const a = scissorAnchor;
-  if (!e || !c || !a) return null;
+  if (!scissorAnchor || !canvasRef.current) return null;
 
-  // canvas rect (viewport me where the canvas sits)
-  const rect = c.getBoundingClientRect();
+  const rect = canvasRef.current.getBoundingClientRect();
+  const { offsetX, offsetY, scale } = viewport; // kept via onViewport
 
-  // engine offsets: (offsetX, offsetY) + scale ka use
-  const left = rect.left + (e.offsetX + a.x * e.scale);
-  const top  = rect.top  + (e.offsetY + a.y * e.scale);
+  return {
+    left: rect.left + offsetX + scissorAnchor.x * scale,
+    top:  rect.top  + offsetY + scissorAnchor.y * scale,
+  };
+}, [scissorAnchor, viewport, canvasSize]);
 
-  return { left, top };
-}, [scissorAnchor]);
 
 
    return (
     <>
       <canvas ref={canvasRef} className="flex-1 bg-black block" />
-      {scPos && (
+     {scPos && (
   <ScissorButton
     left={scPos.left}
     top={scPos.top}
