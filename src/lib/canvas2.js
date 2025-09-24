@@ -299,7 +299,8 @@ drawWithRotation((cx, cy) => drawResistor(this.ctx, cx, cy, this.scale, text, is
       }
 
       // snap dot
-      this.ctx.fillStyle = 'rgb(153,153,153, 0.7)';
+      // this.ctx.fillStyle = 'rgb(153,153,153, 0.7)';
+      this.ctx.fillStyle = 'red';
       this.ctx.beginPath();
       this.ctx.arc(comp.x, comp.y, 2 / this.scale, 0, Math.PI * 2);
       this.ctx.fill();
@@ -318,9 +319,9 @@ drawWithRotation((cx, cy) => drawResistor(this.ctx, cx, cy, this.scale, text, is
     }
 
     // wires
-    this.ctx.strokeStyle = 'white';
     this.ctx.lineWidth = 2 / this.scale;
     for (const wire of this.wires) {
+   this.ctx.strokeStyle = wire?.color || 'white';
       this.ctx.beginPath();
       const [first, ...rest] = wire.path;
       this.ctx.moveTo(first.x, first.y);
@@ -347,13 +348,12 @@ if (e.detail >= 2) { // 2nd click within system dblclick threshold
     const { hitTestAllWires } = await import("./wire.js");
     const hit = hitTestAllWires(this.wires, x, y, 6); // 6px tolerance
     if (hit && hit.wire) {
-      this._wireHit = {
-        x: hit.point.x,
-        y: hit.point.y,
-        wireId: hit.wire.id,
-        segmentIndex: hit.segmentIndex,
-      };
-      if (this.uiHooks?.onWireHit) this.uiHooks.onWireHit({ x: hit.point.x, y: hit.point.y });
+   this._wireHit = {
+     x: hit.point.x, y: hit.point.y,
+     wireId: hit.wire.id, segmentIndex: hit.segmentIndex
+   };
+   if (this.uiHooks?.onWireHit)
+     this.uiHooks.onWireHit({ x: hit.point.x, y: hit.point.y, wireId: hit.wire.id });
       this.draw();
       return; // yahin ruk jao — scissor show ho gaya
     }

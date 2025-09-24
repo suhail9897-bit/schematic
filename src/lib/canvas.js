@@ -137,10 +137,14 @@ class CanvasUtils {
     this.canvas.addEventListener("mouseup", this.handleMouseUp.bind(this));
   }
 
+setWireColor(wireId, color) {
+  const w = this.wires.find(w => w.id === wireId);
+  if (!w) return;
+  w.color = color;
+  this.draw();
+}
 
-  //wire deletion helpers 
   
-
  setPropertyLabelsVisible(v) {
     this.showPropertyLabels = !!v;
     this.draw();
@@ -204,7 +208,8 @@ buildDesignSnapshot() {
     from: { ...w.from },
     to:   { ...w.to },
     netLabel: w.netLabel || w.from?.netLabel || w.to?.netLabel || "",
-    path: (w.path || []).map(p => ({ x: p.x, y: p.y }))
+    path: (w.path || []).map(p => ({ x: p.x, y: p.y })),
+    color: w.color || undefined
   }));
 
   const counters = {
@@ -293,7 +298,8 @@ loadDesignSnapshot(snapshot) {
       from: { compId: w.from.compId, terminalIndex: w.from.terminalIndex, netLabel: w.from.netLabel || "" },
       to:   { compId: w.to.compId,   terminalIndex: w.to.terminalIndex,   netLabel: w.to.netLabel   || "" },
       path: Array.isArray(w.path) && w.path.length ? w.path.map(p => ({ x: p.x, y: p.y })) : null,
-      netLabel: w.netLabel || ""
+      netLabel: w.netLabel || "",
+      color: w.color || undefined
     };
 
     // fallback route if path missing

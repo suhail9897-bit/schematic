@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useImperativeHandle, useState } from "react";
 import CanvasEngine from "../lib/canvas";
 import DownloadPopup from "../extraFiles/downloadpopup";
 import { buildAndDownloadNetlist } from "./netlist";
-import ScissorButton from "../extraFiles/Scissor";
+import WireActions from "../extraFiles/Wirecolor";
 
 const Canvas = React.forwardRef((props, ref) => {
   const canvasRef = useRef(null);
@@ -171,17 +171,18 @@ const Canvas = React.forwardRef((props, ref) => {
    return (
     <>
       <canvas ref={canvasRef} className="flex-1 bg-black block" />
-     {scPos && (
-  <ScissorButton
-    left={scPos.left}
-    top={scPos.top}
-    onClick={() => engineRef.current?.cutSelectedWire?.()}
-    onClose={() => {
-      engineRef.current?.clearWireCut?.();
-      setScissorAnchor(null);
-    }}
-  />
-)}
+      {scPos && scissorAnchor?.wireId && (
+   <WireActions
+     left={scPos.left}
+     top={scPos.top}
+     onCut={() => engineRef.current?.cutSelectedWire?.()}
+     onPick={(color) => engineRef.current?.setWireColor?.(scissorAnchor.wireId, color)}
+     onClose={() => {
+       engineRef.current?.clearWireCut?.();
+       setScissorAnchor(null);
+     }}
+   />
+    )}
       <DownloadPopup
         open={askNameOpen}
         initialValue={proposedCell}
