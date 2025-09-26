@@ -8,6 +8,9 @@ const Canvas = React.forwardRef((props, ref) => {
   const canvasRef = useRef(null);
   const engineRef = useRef(null);
   const roRef = useRef(null);
+  // 🔵 smart-draw state (React-side)
+  const [placing, setPlacing] = useState(null); // { type, rot } | null
+  const [ghost, setGhost] = useState(null);     // { x,y } WORLD (snapped)
 
    const [askNameOpen, setAskNameOpen] = useState(false);
    const [proposedCell, setProposedCell] = useState("");
@@ -47,6 +50,19 @@ const Canvas = React.forwardRef((props, ref) => {
     };
   }, []);
 
+  // 🔵 smart-draw helpers (world <-> screen)
+    const worldFromEvent = (e) => {
+    const rect = canvasRef.current.getBoundingClientRect();
+    const sx = e.clientX - rect.left;
+    const sy = e.clientY - rect.top;
+    const { offsetX, offsetY, scale } = (engineRef.current?.uiHooks?.lastViewport || viewport);
+    const wx = (sx - offsetX) / scale;
+    const wy = (sy - offsetY) / scale;
+    return { x: Math.round(wx / engineRef.current.gridSize) * engineRef.current.gridSize,
+             y: Math.round(wy / engineRef.current.gridSize) * engineRef.current.gridSize };
+  };
+
+
     // 🔗 Wire-cut overlay hook: engine -> React
   useEffect(() => {
   const eng = engineRef.current;
@@ -56,7 +72,10 @@ const Canvas = React.forwardRef((props, ref) => {
   eng.uiHooks = {
     ...(eng.uiHooks || {}),
     onWireHit: (anchor) => setScissorAnchor(anchor), // null or {x,y} (WORLD)
-    onViewport: (vp) => setViewport(vp),             // {offsetX, offsetY, scale}
+     onViewport: (vp) => {
+        setViewport(vp);
+        if (eng.uiHooks) eng.uiHooks.lastViewport = vp;
+      },
   };
 
     return () => {
@@ -81,6 +100,14 @@ const Canvas = React.forwardRef((props, ref) => {
     ref,
     () => ({
       // component add
+      // 🔵 SMART-DRAW togglers (icons call these)
+      togglePlacement: (type) => {
+        setPlacing((p) => (p && p.type === type ? null : { type, rot: 0 }));
+        if (engineRef.current?.setPlacementGhost) {
+          engineRef.current.setPlacementGhost(null); // clear on toggle
+        }
+      },
+      // (legacy) origin-add APIs kept for back-compat
       drawResistor: () => engineRef.current?.drawResistorAt(0, 0),
       drawCapacitor: () => engineRef.current?.drawCapacitorAt(0, 0),
       drawInductor: () => engineRef.current?.drawInductorAt(0, 0),
@@ -166,11 +193,55 @@ const Canvas = React.forwardRef((props, ref) => {
   };
 }, [scissorAnchor, viewport, canvasSize]);
 
+ // 🔵 overlay events when placing
+  const onOverlayMove = (e) => {
+    if (!placing) return;
+    const p = worldFromEvent(e);
+    setGhost(p);
+    engineRef.current?.setPlacementGhost?.({
+      type: placing.type, x: p.x, y: p.y, angle: (placing.rot || 0)
+    });
+  };
+  const onOverlayClick = (e) => {
+    if (!placing) return;
+    const ok = engineRef.current?.placeGhostNow?.(); // overlap check + commit
+    if (ok) {
+      // keep mode on for multi-place; comment next line to auto-exit
+      // setPlacing(null);
+    }
+  };
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!placing) return;
+      if (e.key === 'Escape') {
+        setPlacing(null);
+        engineRef.current?.setPlacementGhost?.(null);
+      } else if (e.key.toLowerCase() === 'r') {
+        setPlacing(p => {
+          const next = ((p?.rot || 0) + Math.PI / 2) % (Math.PI * 2);
+          engineRef.current?.rotateGhostTo?.(next);
+          return { ...(p || {}), rot: next };
+        });
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [placing]);
+
 
 
    return (
     <>
       <canvas ref={canvasRef} className="flex-1 bg-black block" />
+
+      {/* 🔵 Placement overlay (captures only when active) */}
+      {placing && (
+        <div
+          className="absolute inset-0 z-20 cursor-crosshair"
+          onMouseMove={onOverlayMove}
+          onClick={onOverlayClick}
+        />
+      )}
       {scPos && scissorAnchor?.wireId && (
       <WireActions
        initialColor={engineRef.current?.getWireColor?.(scissorAnchor.wireId)}

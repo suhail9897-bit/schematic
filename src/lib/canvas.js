@@ -128,6 +128,7 @@ class CanvasUtils {
     this.netCounter = 1;
     this.scheduleReroute = throttle(() => this.rerouteWiresFor(this.selected), 50);
     this.lastReroutePositions = new Map();
+    this._ghost = null; // { type, x,y, angle }
 
    // ✅ device pixel ratio
     this.dpr = window.devicePixelRatio || 1;
@@ -136,6 +137,71 @@ class CanvasUtils {
     this.canvas.addEventListener("mousemove", this.handleMouseMove.bind(this));
     this.canvas.addEventListener("mouseup", this.handleMouseUp.bind(this));
   }
+
+  // 🔵 set/clear ghost from React
+setPlacementGhost(ghost) {
+  this._ghost = ghost ? { ...ghost } : null;
+  this.draw();
+}
+rotateGhostTo(rad) {
+  if (!this._ghost) return;
+  this._ghost.angle = rad;
+  this.draw();
+}
+
+// internal: same box size you use for drag overlap
+_overlapsAnyComponent(x, y, boxSize = 120) {
+  for (const c of this.components) {
+    if (Math.abs(c.x - x) < boxSize && Math.abs(c.y - y) < boxSize) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// 🔵 place current ghost → real component (true=placed, false=blocked)
+placeGhostNow() {
+  const g = this._ghost;
+  if (!g || !g.type) return false;
+  if (this._overlapsAnyComponent(g.x, g.y)) {
+    alert("Can't place component here — overlaps another!");
+    return false;
+  }
+  const t = g.type;
+  const x = g.x, y = g.y, a = g.angle || 0;
+  // reuse your existing per-type adders (origin APIs already exist)
+  const call = {
+    resistor:  (x,y)=>this.drawResistorAt(x,y),
+    capacitor: (x,y)=>this.drawCapacitorAt(x,y),
+    inductor:  (x,y)=>this.drawInductorAt(x,y),
+    diode:     (x,y)=>this.drawDiodeAt(x,y),
+    npn:       (x,y)=>this.drawNPNAt(x,y),
+    pnp:       (x,y)=>this.drawPNPAt(x,y),
+    nmos:      (x,y)=>this.drawNMOSAt(x,y),
+    pmos:      (x,y)=>this.drawPMOSAt(x,y),
+    in:        (x,y)=>this.drawINAt(x,y),
+    out:       (x,y)=>this.drawOUTAt(x,y),
+    "in-out":  (x,y)=>this.drawInOutAt(x,y),
+    vdc:       (x,y)=>this.drawVDCAt(x,y),
+    vssi:      (x,y)=>this.drawVSSIAt(x,y),
+    vddi:      (x,y)=>this.drawVDDIAt(x,y),
+    not:       (x,y)=>this.drawNOTAt(x,y),
+    nand:      (x,y)=>this.drawNANDAt(x,y),
+    nor:       (x,y)=>this.drawNORAt(x,y),
+    xor:       (x,y)=>this.drawXORAt(x,y),
+  }[t];
+  if (!call) return false;
+  // apply rotation if your adders read comp.angle; otherwise set after push
+  const before = this.components.length;
+  call(x, y);
+  const placed = this.components[this.components.length - 1];
+  if (this.components.length > before && placed) {
+    placed.angle = a || 0;
+    this.draw();
+    return true;
+  }
+  return false;
+}
 
 setWireColor(wireId, color) {
   const w = this.wires.find(w => w.id === wireId);
@@ -1357,7 +1423,12 @@ drawVDDIAt(x, y, label = 'VDDI') {
     y: snappedY,
     label, 
     type: 'vddi',
-    terminals: getVDDITerminals(snappedX, snappedY) 
+    terminals: getVDDITerminals(snappedX, snappedY).map(t => ({
+  ...t,
+  x: t.x - snappedX,
+  y: t.y - snappedY,
+  terminalSpace: 'local',   // flag for draw loop
+  })) 
   };
   this.components.push(vddi);
   this.selected = vddi;
@@ -1383,7 +1454,12 @@ drawVSSIAt(x, y, label = 'VSSI') {
     y: snappedY, 
     label, 
     type: 'vssi',
-    terminals: getVSSITerminals(snappedX, snappedY)
+    terminals: getVSSITerminals(snappedX, snappedY).map(t => ({
+  ...t,
+  x: t.x - snappedX,
+  y: t.y - snappedY,
+  terminalSpace: 'local',   // flag for draw loop
+  })) 
   };
   this.components.push(vssi);
   this.selected = vssi;
@@ -1413,7 +1489,12 @@ drawResistorAt(x, y, value = '1Ω') {
     type: 'resistor',
     value,
     label,
-    terminals: getResistorTerminals(snappedX, snappedY)  // ✅
+   terminals: getResistorTerminals(snappedX, snappedY).map(t => ({
+  ...t,
+  x: t.x - snappedX,
+  y: t.y - snappedY,
+  terminalSpace: 'local',   // flag for draw loop
+  })) 
   };
 
   this.components.push(resistor);
@@ -1446,7 +1527,12 @@ drawCapacitorAt(x, y, value = '10µF') {
     type: 'capacitor',
     value:  normalized,
     label,
-    terminals: getCapacitorTerminals(snappedX, snappedY)
+    terminals: getCapacitorTerminals(snappedX, snappedY).map(t => ({
+  ...t,
+  x: t.x - snappedX,
+  y: t.y - snappedY,
+  terminalSpace: 'local',   // flag for draw loop
+  })) 
 
   };
 
@@ -1481,7 +1567,12 @@ drawInductorAt(x, y, value = '10 mH') {
     type: 'inductor',
     value: normalized,
     label,
-    terminals: getInductorTerminals(snappedX, snappedY),
+     terminals: getInductorTerminals(snappedX, snappedY).map(t => ({
+  ...t,
+  x: t.x - snappedX,
+  y: t.y - snappedY,
+  terminalSpace: 'local',   // flag for draw loop
+  })) 
 
   };
 
@@ -1516,7 +1607,12 @@ drawDiodeAt(x, y, value = '1N4148') {
     type: 'diode',
     value,
     label,
-    terminals: getDiodeTerminals(snappedX, snappedY),
+    terminals: getDiodeTerminals(snappedX, snappedY).map(t => ({
+  ...t,
+  x: t.x - snappedX,
+  y: t.y - snappedY,
+  terminalSpace: 'local',   // flag for draw loop
+  })),
     diodeFixed: this._getDiodeFixedDefaults(),
     diodeSize: this._computeDiodeSizeParams(this._getDefaultDiodeArea()), // area+Is/Rs/Cj
 
@@ -1550,7 +1646,12 @@ drawNPNAt(x, y, label = 'NPN') {
     y: snappedY,
     label: finalLabel,
     type: 'npn',
-    terminals: getNPNTerminals(snappedX, snappedY),
+     terminals: getNPNTerminals(snappedX, snappedY).map(t => ({
+  ...t,
+  x: t.x - snappedX,
+  y: t.y - snappedY,
+  terminalSpace: 'local',   // flag for draw loop
+  })),
     npnArea: 1.0, // ✅ default AREA
 
   };
@@ -1583,7 +1684,12 @@ drawPNPAt(x, y, label = 'PNP') {
     y: snappedY,
     label: finalLabel, 
     type: 'pnp',
-    terminals: getPNPTerminals(snappedX, snappedY),
+    terminals: getPNPTerminals(snappedX, snappedY).map(t => ({
+  ...t,
+  x: t.x - snappedX,
+  y: t.y - snappedY,
+  terminalSpace: 'local',   // flag for draw loop
+  })) ,
     pnpArea: 1.0,  
   };
 
@@ -1612,7 +1718,12 @@ drawNMOSAt(x, y, label = 'NMOS') {
     y: snappedY,
     label: finalLabel,
     type: 'nmos',
-    terminals: getNMOSTerminals(snappedX, snappedY),
+    terminals: getNMOSTerminals(snappedX, snappedY).map(t => ({
+  ...t,
+  x: t.x - snappedX,
+  y: t.y - snappedY,
+  terminalSpace: 'local',   // flag for draw loop
+  })),
     nmos: { L: 1, W: 1, type: 'LVT' }
   };
 
@@ -1640,7 +1751,12 @@ drawPMOSAt(x, y, label = 'PMOS') {
     y: snappedY,
     label: finalLabel,
     type: 'pmos',
-     terminals: getPMOSTerminals(snappedX, snappedY)
+    terminals: getPMOSTerminals(snappedX, snappedY).map(t => ({
+  ...t,
+  x: t.x - snappedX,
+  y: t.y - snappedY,
+  terminalSpace: 'local',   // flag for draw loop
+  }))  
   };
 
   this.components.push(pmos);
@@ -1668,7 +1784,12 @@ drawINAt(x, y, label = 'IN') {
     y: snappedY,
     label,
     type: 'in',
-    terminals: getINTerminals(snappedX, snappedY)
+    terminals: getINTerminals(snappedX, snappedY).map(t => ({
+  ...t,
+  x: t.x - snappedX,
+  y: t.y - snappedY,
+  terminalSpace: 'local',   // flag for draw loop
+  })) 
   };
 
   this.components.push(input);
@@ -1696,7 +1817,12 @@ drawOUTAt(x, y, label = 'OUT') {
     y: snappedY,
     label,
     type: 'out',
-    terminals: getOUTTerminals(snappedX, snappedY)
+    terminals: getOUTTerminals(snappedX, snappedY).map(t => ({
+  ...t,
+  x: t.x - snappedX,
+  y: t.y - snappedY,
+  terminalSpace: 'local',   // flag for draw loop
+  })) 
   };
 
   this.components.push(output);
@@ -1724,7 +1850,12 @@ drawInOutAt(x, y, label = 'IN-OUT') {
     y: snappedY,
     label,
     type: 'in-out',
-    terminals: getINOUTTerminals(snappedX, snappedY)
+    terminals: getINOUTTerminals(snappedX, snappedY).map(t => ({
+  ...t,
+  x: t.x - snappedX,
+  y: t.y - snappedY,
+  terminalSpace: 'local',   // flag for draw loop
+  })) 
   };
 
   this.components.push(inout);
@@ -1758,7 +1889,12 @@ drawVDCAt(x, y, value = '1 V') {
     type: 'vdc',
     value,
     label,
-    terminals: getVDCTerminals(snappedX, snappedY)
+    terminals: getVDCTerminals(snappedX, snappedY).map(t => ({
+  ...t,
+  x: t.x - snappedX,
+  y: t.y - snappedY,
+  terminalSpace: 'local',   // flag for draw loop
+  })) 
   };
 
   this.components.push(vdc);

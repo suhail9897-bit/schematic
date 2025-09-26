@@ -9,30 +9,30 @@ const App = () => {
   const [showClearModal, setShowClearModal] = useState(false);
 
   // Component add handlers → Canvas ref API
-  const handleResistorClick = () => canvasApi.current?.drawResistor();
-  const handleCapacitorClick = () => canvasApi.current?.drawCapacitor();
-  const handleInductorClick = () => canvasApi.current?.drawInductor();
-  const handleDiodeClick = () => canvasApi.current?.drawDiode();
+  const handleResistorClick = () => canvasApi.current?.togglePlacement('resistor');
+  const handleCapacitorClick = () => canvasApi.current?.togglePlacement('capacitor');
+  const handleInductorClick = () => canvasApi.current?.togglePlacement('inductor');
+  const handleDiodeClick = () => canvasApi.current?.togglePlacement('diode');
 
-  const handleNPNClick = () => canvasApi.current?.drawNPN();
-  const handlePNPClick = () => canvasApi.current?.drawPNP();
-  const handleNMOSClick = () => canvasApi.current?.drawNMOS();
-  const handlePMOSClick = () => canvasApi.current?.drawPMOS();
+  const handleNPNClick = () => canvasApi.current?.togglePlacement('npn');
+  const handlePNPClick = () => canvasApi.current?.togglePlacement('pnp');
+  const handleNMOSClick = () => canvasApi.current?.togglePlacement('nmos');
+  const handlePMOSClick = () => canvasApi.current?.togglePlacement('pmos');
 
-  const handleINClick = () => canvasApi.current?.drawIN();
-  const handleOUTClick = () => canvasApi.current?.drawOUT();
-  const handleInOutClick = () => canvasApi.current?.drawInOut();
+  const handleINClick = () => canvasApi.current?.togglePlacement('in');
+  const handleOUTClick = () => canvasApi.current?.togglePlacement('out');
+  const handleInOutClick = () => canvasApi.current?.togglePlacement('in-out');
 
-  const handleVDCClick = () => canvasApi.current?.drawVDC();
-  const handleVSSIClick = () => canvasApi.current?.drawVSSI();
-  const handleVDDIClick = () => canvasApi.current?.drawVDDI();
+  const handleVDCClick = () => canvasApi.current?.togglePlacement('vdc');
+  const handleVSSIClick = () => canvasApi.current?.togglePlacement('vssi');
+  const handleVDDIClick = () => canvasApi.current?.togglePlacement('vddi');
 
   // const handleANDClick = () => canvasApi.current?.drawAND?.();
   // const handleORClick  = () => canvasApi.current?.drawOR?.();
-  const handleNOTClick = () => canvasApi.current?.drawNOT();
-  const handleNANDClick = () => canvasApi.current?.drawNAND();
-  const handleNORClick = () => canvasApi.current?.drawNOR();
-  const handleXORClick = () => canvasApi.current?.drawXOR();
+  const handleNOTClick = () => canvasApi.current?.togglePlacement('not');
+  const handleNANDClick = () => canvasApi.current?.togglePlacement('nand');
+  const handleNORClick = () => canvasApi.current?.togglePlacement('nor');
+  const handleXORClick = () => canvasApi.current?.togglePlacement('xor');
 
   // Actions
   const handleRotateClick = (dir = "cw") => canvasApi.current?.rotateSelected(dir);

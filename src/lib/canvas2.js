@@ -259,30 +259,48 @@ drawWithRotation((cx, cy) => drawResistor(this.ctx, cx, cy, this.scale, text, is
 
       }
 
-      // terminal net labels + dots
-      if (comp.terminals) {
-        for (const [index, terminal] of comp.terminals.entries()) {
-          if (!terminal.netLabel) terminal.netLabel = `net${this.netCounter++}`;
-          const globalX = comp.x + terminal.x;
-          const globalY = comp.y + terminal.y;
+     // ➜ Add this helper near top of draw() (helpers ke paas)
+const termToWorld = (comp, t) => {
+  if (!comp?.angle) return { x: comp.x + t.x, y: comp.y + t.y };
+  const cos = Math.cos(comp.angle), sin = Math.sin(comp.angle);
+  return {
+    x: comp.x + t.x * cos - t.y * sin,
+    y: comp.y + t.x * sin + t.y * cos,
+  };
+};
 
-          this.ctx.font = `${12}px sans-serif`;
-          this.ctx.fillStyle = 'transparent';
-          this.ctx.textAlign = 'center';
-          this.ctx.textBaseline = 'bottom';
-          this.ctx.fillText(terminal.netLabel, globalX, globalY - 8);
-          if (this.showNetLabels) {
-           this.ctx.font = `${12}px sans-serif`;
-           this.ctx.fillStyle = 'cyan';
-           this.ctx.textAlign = 'center';
-           this.ctx.textBaseline = 'bottom';
-           this.ctx.fillText(terminal.netLabel, globalX, globalY - 8);
-         }
-          this.ctx.beginPath();
-          this.ctx.arc(globalX, globalY, 2 / this.scale, 0, Math.PI * 2);
-          this.ctx.fill();
-        }
-      }
+// ... then in the "terminal net labels + dots" loop:
+if (comp.terminals) {
+  for (const [index, terminal] of comp.terminals.entries()) {
+    if (!terminal.netLabel) terminal.netLabel = `net${this.netCounter++}`;
+
+    // Detect whether terminal is LOCAL or WORLD.
+    const isLocal =
+      terminal.terminalSpace === 'local' ||
+      (Math.abs(terminal.x) <= 100 && Math.abs(terminal.y) <= 100);
+
+    const { x: globalX, y: globalY } =
+      isLocal ? termToWorld(comp, terminal) : { x: terminal.x, y: terminal.y };
+
+    // (text + dot exactly as before)
+    this.ctx.font = `${12}px sans-serif`;
+    this.ctx.fillStyle = 'transparent';
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'bottom';
+    this.ctx.fillText(terminal.netLabel, globalX, globalY - 8);
+    if (this.showNetLabels) {
+      this.ctx.font = `${12}px sans-serif`;
+      this.ctx.fillStyle = 'cyan';
+      this.ctx.textAlign = 'center';
+      this.ctx.textBaseline = 'bottom';
+      this.ctx.fillText(terminal.netLabel, globalX, globalY - 8);
+    }
+    this.ctx.beginPath();
+    this.ctx.arc(globalX, globalY, 2 / this.scale, 0, Math.PI * 2);
+    this.ctx.fill();
+  }
+}
+
 
       // (transparent) inner box for “wire can’t cross component”
       for (const comp of this.components) {
@@ -305,6 +323,63 @@ drawWithRotation((cx, cy) => drawResistor(this.ctx, cx, cy, this.scale, text, is
       this.ctx.arc(comp.x, comp.y, 2 / this.scale, 0, Math.PI * 2);
       this.ctx.fill();
     }
+
+// 🔵 Ghost preview (after real components)
+if (this._ghost && this._ghost.type) {
+  const g = this._ghost;
+  const ctx = this.ctx;
+
+  const drawGhost = (fn) => {
+    ctx.save();
+    ctx.globalAlpha = 0.75;
+    if (g.angle) {
+      ctx.translate(g.x, g.y);
+      ctx.rotate(g.angle);
+      fn(0, 0);
+    } else {
+      fn(g.x, g.y);
+    }
+    ctx.restore();
+  };
+
+  // lightweight fallbacks for labels in ghost
+  const maybe = (label, fb) => (label || fb);
+
+  if (g.type === 'resistor')      drawGhost((cx,cy)=>drawResistor(ctx,cx,cy,this.scale, maybe('', 'R'),    false));
+  else if (g.type === 'capacitor')drawGhost((cx,cy)=>drawCapacitor(ctx,cx,cy,this.scale, maybe('', 'C'),    false));
+  else if (g.type === 'inductor') drawGhost((cx,cy)=>drawInductor(ctx,cx,cy,this.scale,  maybe('', 'L'),    false));
+  else if (g.type === 'diode')    drawGhost((cx,cy)=>drawDiode(ctx,cx,cy,this.scale,     maybe('', 'D'),    false));
+  else if (g.type === 'npn')      drawGhost((cx,cy)=>drawNPN(ctx,cx,cy,this.scale,       maybe('', 'NPN'),  false));
+  else if (g.type === 'pnp')      drawGhost((cx,cy)=>drawPNP(ctx,cx,cy,this.scale,       maybe('', 'PNP'),  false));
+  else if (g.type === 'nmos')     drawGhost((cx,cy)=>drawNMOS(ctx,cx,cy,this.scale,      maybe('', 'NMOS'), false));
+  else if (g.type === 'pmos')     drawGhost((cx,cy)=>drawPMOS(ctx,cx,cy,this.scale,      maybe('', 'PMOS'), false));
+  else if (g.type === 'in')       drawGhost((cx,cy)=>drawIN(ctx,cx,cy,this.scale,        maybe('', 'IN'),   false));
+  else if (g.type === 'out')      drawGhost((cx,cy)=>drawOUT(ctx,cx,cy,this.scale,       maybe('', 'OUT'),  false));
+  else if (g.type === 'in-out')   drawGhost((cx,cy)=>drawInOut(ctx,cx,cy,this.scale,     maybe('', 'IN-OUT'), false));
+  else if (g.type === 'vdc')      drawGhost((cx,cy)=>drawVDC(ctx,cx,cy,this.scale,       'V', false, { valueText:'', showName:true, showValue:false }));
+  else if (g.type === 'vssi')     drawGhost((cx,cy)=>drawVSSI(ctx,cx,cy,this.scale,      maybe('', 'VSSI'), false));
+  else if (g.type === 'vddi')     drawGhost((cx,cy)=>drawVDDI(ctx,cx,cy,this.scale,      maybe('', 'VDDI'), false));
+  else if (g.type === 'not')      drawGhost((cx,cy)=>drawNOT(ctx,cx,cy,this.scale,       maybe('', 'NOT'),  false));
+  else if (g.type === 'nand')     drawGhost((cx,cy)=>drawNAND(ctx,cx,cy,this.scale,      maybe('', 'NAND'), false));
+  else if (g.type === 'nor')      drawGhost((cx,cy)=>drawNOR(ctx,cx,cy,this.scale,       maybe('', 'NOR'),  false));
+  else if (g.type === 'xor')      drawGhost((cx,cy)=>drawXOR(ctx,cx,cy,this.scale,       maybe('', 'XOR'),  false));
+
+  // same overlap box used during drag (yellow)
+  const boxSize = 120;
+  for (const c of this.components) {
+    // use same signature you use for dragging:
+    // in your file it's called like: areBoxesOverlapping(this.selected, comp)
+    if (areBoxesOverlapping({ x: g.x, y: g.y }, c)) {
+      this.ctx.fillStyle = 'rgba(167, 13, 13, 0.54)';
+      this.ctx.fillRect(g.x - boxSize/2, g.y - boxSize/2, boxSize, boxSize);
+      this.ctx.strokeStyle = 'rgba(217, 240, 14, 1)';
+      this.ctx.lineWidth = 1 / this.scale;
+      this.ctx.strokeRect(g.x - boxSize/2, g.y - boxSize/2, boxSize, boxSize);
+      break;
+    }
+  }
+}
+
 
     // yellow ring for selected terminals
     for (const { comp, index } of this.selectedTerminals) {

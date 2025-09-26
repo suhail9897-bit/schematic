@@ -208,6 +208,16 @@ export default function LeftSidebar({
   onNOTClick, onNANDClick, onNORClick, onXORClick,
 }) {
   const [open, setOpen] = useState(true);
+  const [activeType, setActiveType] = useState(null); // 'resistor' | 'capacitor' | ...
+ const btn = (type, onClick, children) => (
+   <button
+     className={`${iBtn} ${activeType===type ? 'ring-1 ring-green-500 bg-[#1e1e1e]' : ''}`}
+     onClick={() => { setActiveType(t => t===type ? null : type); onClick?.(); }}
+   >
+     {children}
+   </button>
+ );
+
 
   return (
     <div className="relative inline-block text-left">
@@ -241,87 +251,86 @@ export default function LeftSidebar({
 
 <div className="flex items-center gap-2 px-3 py-2 min-w-max">
   {/* PASSIVE */}
-  <Tooltip text="Resistor">
-    <button className={iBtn} onClick={onResistorClick}><IconResistor /></button>
-  </Tooltip>
+<Tooltip text="Resistor">
+  {btn('resistor', onResistorClick, <IconResistor />)}
+</Tooltip>
 
-  <Tooltip text="Capacitor">
-    <button className={iBtn} onClick={onCapacitorClick}><IconCapacitor /></button>
-  </Tooltip>
+<Tooltip text="Capacitor">
+  {btn('capacitor', onCapacitorClick, <IconCapacitor />)}
+</Tooltip>
 
-  <Tooltip text="Inductor">
-    <button className={iBtn} onClick={onInductorClick}><IconInductor /></button>
-  </Tooltip>
+<Tooltip text="Inductor">
+  {btn('inductor', onInductorClick, <IconInductor />)}
+</Tooltip>
 
-  {/* divider dots */}
-  <span className="mx-1 w-px h-6 bg-white/10 rounded " />
+<span className="mx-1 w-px h-6 bg-white/10 rounded " />
 
-  {/* ACTIVE */}
-  <Tooltip text="Diode">
-    <button className={iBtn} onClick={onDiodeClick}><IconDiode /></button>
-  </Tooltip>
+{/* ACTIVE */}
+<Tooltip text="Diode">
+  {btn('diode', onDiodeClick, <IconDiode />)}
+</Tooltip>
 
-  <Tooltip text="NPN">
-    <button className={iBtn} onClick={onNPNClick}><IconNPN /></button>
-  </Tooltip>
+    <Tooltip text="NPN">
+      {btn('npn', onNPNClick, <IconNPN />)}
+    </Tooltip>
 
-  <Tooltip text="PNP">
-    <button className={iBtn} onClick={onPNPClick}><IconPNP /></button>
-  </Tooltip>
+    <Tooltip text="PNP">
+      {btn('pnp', onPNPClick, <IconPNP />)}
+    </Tooltip>
 
-  <Tooltip text="NMOS">
-    <button className={iBtn} onClick={onNMOSClick}><IconNMOS /></button>
-  </Tooltip>
+    <Tooltip text="NMOS">
+      {btn('nmos', onNMOSClick, <IconNMOS />)}
+    </Tooltip>
 
-  <Tooltip text="PMOS">
-    <button className={iBtn} onClick={onPMOSClick}><IconPMOS /></button>
-  </Tooltip>
+    <Tooltip text="PMOS">
+      {btn('pmos', onPMOSClick, <IconPMOS />)}
+    </Tooltip>
 
-  <span className="mx-1 w-px h-6 bg-white/10 rounded" />
+    <span className="mx-1 w-px h-6 bg-white/10 rounded" />
 
-  {/* IO */}
-  <Tooltip text="In">
-    <button className={iBtn} onClick={onINClick}><IconIn /></button>
-  </Tooltip>
+    {/* IO */}
+    <Tooltip text="In">
+      {btn('in', onINClick, <IconIn />)}
+    </Tooltip>
 
-  <Tooltip text="Out">
-    <button className={iBtn} onClick={onOUTClick}><IconOut /></button>
-  </Tooltip>
+    <Tooltip text="Out">
+      {btn('out', onOUTClick, <IconOut />)}
+    </Tooltip>
 
-  <Tooltip text="In-Out">
-    <button className={iBtn} onClick={onInOutClick}><IconInOut /></button>
-  </Tooltip>
+    <Tooltip text="In-Out">
+      {btn('in-out', onInOutClick, <IconInOut />)}
+    </Tooltip>
 
-  <Tooltip text="VDC">
-    <button className={iBtn} onClick={onVDCClick}><IconVDC /></button>
-  </Tooltip>
+    <Tooltip text="VDC">
+      {btn('vdc', onVDCClick, <IconVDC />)}
+    </Tooltip>
 
-  <Tooltip text="VSSI">
-    <button className={iBtn} onClick={onVSSIClick}><IconVSSI /></button>
-  </Tooltip>
+    <Tooltip text="VSSI">
+      {btn('vssi', onVSSIClick, <IconVSSI />)}
+    </Tooltip>
 
-  <Tooltip text="VDDI">
-    <button className={iBtn} onClick={onVDDIClick}><IconVDDI /></button>
-  </Tooltip>
+    <Tooltip text="VDDI">
+      {btn('vddi', onVDDIClick, <IconVDDI />)}
+    </Tooltip>
 
-  <span className="mx-1 w-px h-6 bg-white/10 rounded" />
+    <span className="mx-1 w-px h-6 bg-white/10 rounded" />
 
-  {/* GATES */}
-  <Tooltip text="NOT">
-    <button className={iBtn} onClick={onNOTClick}><IconNOT /></button>
-  </Tooltip>
+    {/* GATES */}
+    <Tooltip text="NOT">
+      {btn('not', onNOTClick, <IconNOT />)}
+    </Tooltip>
 
-  <Tooltip text="NAND">
-    <button className={iBtn} onClick={onNANDClick}><IconNAND /></button>
-  </Tooltip>
+    <Tooltip text="NAND">
+      {btn('nand', onNANDClick, <IconNAND />)}
+    </Tooltip>
 
-  <Tooltip text="NOR">
-    <button className={iBtn} onClick={onNORClick}><IconNOR /></button>
-  </Tooltip>
+    <Tooltip text="NOR">
+      {btn('nor', onNORClick, <IconNOR />)}
+    </Tooltip>
 
-  <Tooltip text="XOR">
-    <button className={iBtn} onClick={onXORClick}><IconXOR /></button>
-  </Tooltip>
+    <Tooltip text="XOR">
+      {btn('xor', onXORClick, <IconXOR />)}
+    </Tooltip>
 </div>
 
             </div>
