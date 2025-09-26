@@ -144,6 +144,10 @@ setWireColor(wireId, color) {
   this.draw();
 }
 
+getWireColor(wireId) {
+  const w = this.wires.find(w => w.id === wireId);
+  return w?.color || '#ffffff'; // default
+}
   
  setPropertyLabelsVisible(v) {
     this.showPropertyLabels = !!v;

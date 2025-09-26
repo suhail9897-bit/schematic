@@ -172,16 +172,17 @@ const Canvas = React.forwardRef((props, ref) => {
     <>
       <canvas ref={canvasRef} className="flex-1 bg-black block" />
       {scPos && scissorAnchor?.wireId && (
-   <WireActions
-     left={scPos.left}
-     top={scPos.top}
-     onCut={() => engineRef.current?.cutSelectedWire?.()}
-     onPick={(color) => engineRef.current?.setWireColor?.(scissorAnchor.wireId, color)}
-     onClose={() => {
-       engineRef.current?.clearWireCut?.();
-       setScissorAnchor(null);
-     }}
-   />
+      <WireActions
+       initialColor={engineRef.current?.getWireColor?.(scissorAnchor.wireId)}
+        left={scPos.left}
+        top={scPos.top}
+        onCut={() => engineRef.current?.cutSelectedWire?.()}
+        onPick={(color) => engineRef.current?.setWireColor?.(scissorAnchor.wireId, color)}
+        onClose={() => {
+          engineRef.current?.clearWireCut?.();
+          setScissorAnchor(null);
+        }}
+      />
     )}
       <DownloadPopup
         open={askNameOpen}

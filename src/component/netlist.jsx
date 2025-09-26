@@ -24,10 +24,31 @@ function buildNetlistString(engine, rawCellName) {
   const hasX3  = engine.components.some(c => (c.type || '').toLowerCase()==='xor'  && (c.xor?.inputs  ?? 2) === 3);
   const hasNOT = engine.components.some(c => (c.type || '').toLowerCase()==='not');
 
+  // Which MOS models are needed? (scan once)
+  const needNMOS_LVT = engine.components.some(
+    c => (c.type || '').toLowerCase() === 'nmos' && (c.nmos?.type !== 'HVT')
+  );
+  const needNMOS_HVT = engine.components.some(
+    c => (c.type || '').toLowerCase() === 'nmos' && (c.nmos?.type === 'HVT')
+  );
+  const needPMOS_LVT = engine.components.some(
+    c => (c.type || '').toLowerCase() === 'pmos' && (c.pmos?.type !== 'HVT')
+  );
+  const needPMOS_HVT = engine.components.some(
+    c => (c.type || '').toLowerCase() === 'pmos' && (c.pmos?.type === 'HVT')
+  );
+
+
   if (hasN2 || hasN3 || hasR2 || hasR3 || hasX2 || hasX3 || hasNOT) {
     lines.push('* Netlist Data', '');
     lines.push('.MODEL NMOS_GLOBEL NMOS LEVEL=6');
     lines.push('.MODEL PMOS_GLOBEL PMOS LEVEL=6', '');
+     // ---- Process models (placed outside any .SUBCKT) ----
+    if (needNMOS_LVT) lines.push('.MODEL NMOS_LVT NMOS (LEVEL=1 VTO=0.40 KP=120e-6 GAMMA=0.4 LAMBDA=0.02)');
+    if (needNMOS_HVT) lines.push('.MODEL NMOS_HVT NMOS (LEVEL=1 VTO=0.80 KP=100e-6 GAMMA=0.5 LAMBDA=0.02)');
+    if (needPMOS_LVT) lines.push('.MODEL PMOS_LVT PMOS (LEVEL=1 VTO=-0.40 KP=60e-6 GAMMA=0.4 LAMBDA=0.02)');
+    if (needPMOS_HVT) lines.push('.MODEL PMOS_HVT PMOS (LEVEL=1 VTO=-0.80 KP=50e-6 GAMMA=0.5 LAMBDA=0.02)');
+    if (needNMOS_LVT || needNMOS_HVT || needPMOS_LVT || needPMOS_HVT) lines.push('');
 
     if (hasNOT) {
       lines.push('');
@@ -122,6 +143,15 @@ function buildNetlistString(engine, rawCellName) {
   const OUT = uniq(outPins);
 
   lines.push('', '');
+    // If gate block didn't run, still emit MOS models before top .SUBCKT
+    if (!(hasN2 || hasN3 || hasR2 || hasR3 || hasX2 || hasX3 || hasNOT)) {
+    if (needNMOS_LVT) lines.push('.MODEL NMOS_LVT NMOS (LEVEL=1 VTO=0.40 KP=120e-6 GAMMA=0.4 LAMBDA=0.02)');
+    if (needNMOS_HVT) lines.push('.MODEL NMOS_HVT NMOS (LEVEL=1 VTO=0.80 KP=100e-6 GAMMA=0.5 LAMBDA=0.02)');
+    if (needPMOS_LVT) lines.push('.MODEL PMOS_LVT PMOS (LEVEL=1 VTO=-0.40 KP=60e-6 GAMMA=0.4 LAMBDA=0.02)');
+    if (needPMOS_HVT) lines.push('.MODEL PMOS_HVT PMOS (LEVEL=1 VTO=-0.80 KP=50e-6 GAMMA=0.5 LAMBDA=0.02)');
+    if (needNMOS_LVT || needNMOS_HVT || needPMOS_LVT || needPMOS_HVT) lines.push('');
+  }
+  lines.push('', '');
   lines.push(`.SUBCKT ${CELL} ${[...IN, ...OUT].join(' ')}`);
 
   // ---- helpers used inside switch ----
@@ -138,11 +168,7 @@ function buildNetlistString(engine, rawCellName) {
   let addedNPNModel = false;
   let addedPNPModel = false;
   let qCount = 0;
-  let addedNMOS_LVT = false;
-  let addedNMOS_HVT = false;
-  let addedPMOS_LVT = false;
-  let addedPMOS_HVT = false;
-
+ 
   engine.components.forEach((comp) => {
     const t   = (comp.type || "").toLowerCase();
     const name = comp.label?.split(" ")[0] || t.toUpperCase();
@@ -218,17 +244,7 @@ function buildNetlistString(engine, rawCellName) {
         const L_m = L_um * 1e-6;
         const W_m = W_um * 1e-6;
         lines.push(`M${mn} ${nd} ${ng} ${ns} ${nb} ${model} W=${W_m} L=${L_m}`);
-        if (type === 'LVT') {
-          if (!addedNMOS_LVT) {
-            lines.push(`.MODEL NMOS_LVT NMOS (LEVEL=1 VTO=0.40 KP=120e-6 GAMMA=0.4 LAMBDA=0.02)`);
-            addedNMOS_LVT = true;
-          }
-        } else {
-          if (!addedNMOS_HVT) {
-            lines.push(`.MODEL NMOS_HVT NMOS (LEVEL=1 VTO=0.80 KP=100e-6 GAMMA=0.5 LAMBDA=0.02)`);
-            addedNMOS_HVT = true;
-          }
-        }
+  
         break;
       }
 
@@ -246,17 +262,7 @@ function buildNetlistString(engine, rawCellName) {
         const L_m = L_um * 1e-6;
         const W_m = W_um * 1e-6;
         lines.push(`M${mp} ${nd} ${ng} ${ns} ${nb} ${model} W=${W_m} L=${L_m}`);
-        if (type === 'LVT') {
-          if (!addedPMOS_LVT) {
-            lines.push(`.MODEL PMOS_LVT PMOS (LEVEL=1 VTO=-0.40 KP=60e-6 GAMMA=0.4 LAMBDA=0.02)`);
-            addedPMOS_LVT = true;
-          }
-        } else {
-          if (!addedPMOS_HVT) {
-            lines.push(`.MODEL PMOS_HVT PMOS (LEVEL=1 VTO=-0.80 KP=50e-6 GAMMA=0.5 LAMBDA=0.02)`);
-            addedPMOS_HVT = true;
-          }
-        }
+       
         break;
       }
 
@@ -372,10 +378,12 @@ function downloadTextFile(content, filename = "circuit.cir") {
   URL.revokeObjectURL(url);
 }
 
-export function buildAndDownloadNetlist(engine, cellName) {
-  const text = buildNetlistString(engine, cellName);
-  downloadTextFile(text, "circuit.cir");
-}
+ export function buildAndDownloadNetlist(engine, cellName) {
+   const text = buildNetlistString(engine, cellName);
+   // Use same sanitization as the netlist builder; fallback prevents empty names.
+   const safe = sanitizeCellName(cellName) || "CIRCUIT";
+   downloadTextFile(text, `${safe}.cir`);
+ }
 
 // (optional) export raw builder if you ever need just the string
 export { buildNetlistString };
