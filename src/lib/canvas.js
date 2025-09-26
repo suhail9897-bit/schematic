@@ -148,6 +148,22 @@ getWireColor(wireId) {
   const w = this.wires.find(w => w.id === wireId);
   return w?.color || '#ffffff'; // default
 }
+// NEW: recolor the entire net for a given wire id
+setNetColorByWireId(wireId, color) {
+  const target = this.wires.find(w => w.id === wireId);
+  if (!target) return;
+  const label =
+    target.netLabel ||
+    target.from?.netLabel ||
+    target.to?.netLabel || "";
+  if (!label) { this.setWireColor(wireId, color); return; }
+
+  for (const w of this.wires) {
+    const L = w.netLabel || w.from?.netLabel || w.to?.netLabel || "";
+    if (L === label) w.color = color;
+  }
+  this.draw();
+}
   
  setPropertyLabelsVisible(v) {
     this.showPropertyLabels = !!v;

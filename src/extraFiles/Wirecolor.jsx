@@ -6,6 +6,8 @@ const SWATCHES = [
   "white","cyan","deepskyblue","lime","limegreen","yellow",
   "orange","gold","red","crimson"
 ];
+const RECENT_KEY = "wireRecentColors";
+const MAX_RECENTS = 8;
 
 // Browser CSS color validator
 function normalizeCssColor(input) {
@@ -20,14 +22,33 @@ export default function WireActions({ left, top, onCut, onPick, onClose, initial
   const [open, setOpen] = React.useState(false);
   const [text, setText] = React.useState("#ffffff");
   const [bad, setBad] = React.useState("");
+  const [wholeNet, setWholeNet] = React.useState(false);
+  const [recents, setRecents] = React.useState([]);
+ 
 
   if (left == null || top == null) return null;
+
+  // recent colors helpers
+  const loadRecents = () => {
+    try { return JSON.parse(localStorage.getItem(RECENT_KEY) || "[]"); } catch { return []; }
+  };
+  const saveRecents = (arr) => {
+    const trimmed = arr.slice(0, MAX_RECENTS);
+    setRecents(trimmed);
+    try { localStorage.setItem(RECENT_KEY, JSON.stringify(trimmed)); } catch {}
+  };
+  const pushRecent = (c) => {
+    const hex = toHex(c);
+    const next = [hex, ...recents.filter(x => x.toLowerCase() !== hex.toLowerCase())];
+    saveRecents(next);
+  };
 
   const applyText = () => {
     const ok = normalizeCssColor(text);
     if (!ok) { setBad("Invalid color. Try #RRGGBB, rgb(), or hsl()."); return; }
     onPick?.(ok);
     setOpen(false);
+    applyColor(ok);
     setBad("");
   };
 
@@ -52,6 +73,16 @@ export default function WireActions({ left, top, onCut, onPick, onClose, initial
   React.useEffect(() => {
     if (initialColor) setText(toHex(initialColor));
   }, [initialColor]);
+  // load recents once
+  React.useEffect(() => { setRecents(loadRecents()); }, []);
+
+  const applyColor = (c) => {
+    const hex = toHex(c);
+    setText(hex);
+    onPick?.({ color: hex, wholeNet });
+    pushRecent(hex);
+    setOpen(false);
+  };
 
 
   return (
@@ -140,7 +171,7 @@ export default function WireActions({ left, top, onCut, onPick, onClose, initial
                 <button
                   key={c}
                   type="button"
-                  onClick={() => { setText(toHex(c)); onPick?.(c); setOpen(false); }}
+                  onClick={() => applyColor(c)}
                   className="w-4 h-4 rounded border border-white/15 shadow
                              ring-0 hover:ring-2 hover:ring-cyan-400/60 hover:scale-110
                              transition"
@@ -150,13 +181,33 @@ export default function WireActions({ left, top, onCut, onPick, onClose, initial
               ))}
             </div>
 
+            {/* Recent colors */}
+            {recents.length > 0 && (
+              <div className="mb-2">
+                <div className="text-[11px] text-neutral-400 mb-1">Recent</div>
+                <div className="flex gap-2">
+                  {recents.map(c => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => applyColor(c)}
+                      title={c}
+                      className="w-4 h-4 rounded border border-white/15 shadow hover:scale-110 transition"
+                      style={{ background: c }}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+ 
+
             {/* Advanced */}
             <div className="flex items-center gap-2">
               <input
                 type="color"
                 aria-label="Pick any color"
                 className="w-7 h-7 p-0 rounded border border-white/15 bg-transparent"
-                onChange={(e) => { setText(e.target.value); setBad(""); onPick?.(e.target.value); }}
+                 onChange={(e) => { setText(e.target.value); setBad(""); onPick?.({ color: e.target.value, wholeNet }); }}
                 value={/^#([0-9a-f]{6}|[0-9a-f]{3})$/i.test(text) ? text : "#ffffff"}
               />
               <input
@@ -178,6 +229,12 @@ export default function WireActions({ left, top, onCut, onPick, onClose, initial
                 Apply
               </button>
             </div>
+
+            {/* Whole-net toggle */}
+            <label className="mt-2 flex items-center gap-2 text-xs text-neutral-200">
+              <input type="checkbox" checked={wholeNet} onChange={(e)=>setWholeNet(e.target.checked)} />
+              Color whole net
+            </label>
 
             {bad && <div className="text-red-400 text-xs mt-2">{bad}</div>}
           </div>

@@ -177,7 +177,16 @@ const Canvas = React.forwardRef((props, ref) => {
         left={scPos.left}
         top={scPos.top}
         onCut={() => engineRef.current?.cutSelectedWire?.()}
-        onPick={(color) => engineRef.current?.setWireColor?.(scissorAnchor.wireId, color)}
+        onPick={(payload) => {
+          const { color, wholeNet } =
+            typeof payload === "string" ? { color: payload, wholeNet: false } : (payload || {});
+          if (!color) return;
+          if (wholeNet) {
+            engineRef.current?.setNetColorByWireId?.(scissorAnchor.wireId, color);
+          } else {
+            engineRef.current?.setWireColor?.(scissorAnchor.wireId, color);
+          }
+        }}
         onClose={() => {
           engineRef.current?.clearWireCut?.();
           setScissorAnchor(null);
