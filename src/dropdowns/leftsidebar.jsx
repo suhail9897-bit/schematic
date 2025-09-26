@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FaChevronDown, FaChevronUp } from "react-icons/fa";
 import npnIcon from "../assets/icons8-npn-64.png";
 import pnpIcon from "../assets/icons8-pnp-64.png";
@@ -217,6 +217,12 @@ export default function LeftSidebar({
      {children}
    </button>
  );
+ useEffect(() => {
+  const off = () => setActiveType(null);
+  window.addEventListener('smartdraw:cancel', off);
+  return () => window.removeEventListener('smartdraw:cancel', off);
+}, []);
+
 
 
   return (

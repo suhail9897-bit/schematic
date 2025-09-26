@@ -216,6 +216,7 @@ const Canvas = React.forwardRef((props, ref) => {
       if (e.key === 'Escape') {
         setPlacing(null);
         engineRef.current?.setPlacementGhost?.(null);
+        window.dispatchEvent(new CustomEvent('smartdraw:cancel'));
       } else if (e.key.toLowerCase() === 'r') {
         setPlacing(p => {
           const next = ((p?.rot || 0) + Math.PI / 2) % (Math.PI * 2);
