@@ -197,6 +197,25 @@ placeGhostNow() {
   const placed = this.components[this.components.length - 1];
   if (this.components.length > before && placed) {
     placed.angle = a || 0;
+      // --- normalize terminals if ghost was rotated ---
+  if (a) {
+    const cos = Math.cos(a), sin = Math.sin(a);
+    const rot = (x, y) => ({ x: x * cos - y * sin, y: x * sin + y * cos });
+
+    placed.terminals = (placed.terminals || []).map(t => {
+      // world-coord terminals ko chhedo mat
+      const isWorld = t.terminalSpace === 'world' || Math.abs(t.x) > 200 || Math.abs(t.y) > 200;
+      if (isWorld) return t;
+      const r = rot(t.x, t.y);
+      return { ...t, x: r.x, y: r.y, terminalSpace: 'local' };
+    });
+
+    // tell draw(): labels ko dobara angle se rotate mat karna
+    placed.terminalsBase = placed.terminals.map(t => ({
+      x: t.x, y: t.y, netLabel: t.netLabel
+    }));
+  }
+
     this.draw();
     return true;
   }
@@ -1372,7 +1391,13 @@ drawNOTAt(x, y, label = 'NOT') {
      y: snappedY, 
      label: finalLabel,
      type: 'not',
-     terminals: getNOTTerminals(snappedX, snappedY)
+     terminals: getNOTTerminals(snappedX, snappedY).map(t => ({
+  ...t,
+  x: t.x - snappedX,
+  y: t.y - snappedY,
+  terminalSpace: 'local',
+}))
+
     };
   this.components.push(notGate);
   this.selected = notGate;

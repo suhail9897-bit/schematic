@@ -90,6 +90,29 @@ const maybeName = (comp, fallback) =>
   const propsText = (txt) => (propsOn() ? txt : '');
 
 
+// ⚠️ Labels ke world coords: terminals ko dobara rotate NAA karo
+const labelWorld = (comp, t) => {
+  const lx = t.x, ly = t.y;
+
+  // old designs ya world-coord terminals
+  if (t.terminalSpace === 'world' || Math.abs(lx) > 200 || Math.abs(ly) > 200) {
+    return { x: lx, y: ly };
+  }
+
+  // ✅ Agar rotateSelected ne terminals ko already current orientation me set kiya hai
+  // to bas translate karo (no extra rotation)
+  if (comp.terminalsBase) {
+    return { x: comp.x + lx, y: comp.y + ly };
+  }
+
+  // Warna (very old path) angle apply karo
+  if (!comp.angle) return { x: comp.x + lx, y: comp.y + ly };
+  const s = Math.sin(comp.angle), c = Math.cos(comp.angle);
+  return { x: comp.x + lx * c - ly * s, y: comp.y + lx * s + ly * c };
+};
+
+
+
 
 
     for (const comp of this.components) {
@@ -279,8 +302,8 @@ if (comp.terminals) {
       terminal.terminalSpace === 'local' ||
       (Math.abs(terminal.x) <= 100 && Math.abs(terminal.y) <= 100);
 
-    const { x: globalX, y: globalY } =
-      isLocal ? termToWorld(comp, terminal) : { x: terminal.x, y: terminal.y };
+        const { x: globalX, y: globalY } = labelWorld(comp, terminal);
+
 
     // (text + dot exactly as before)
     this.ctx.font = `${12}px sans-serif`;
