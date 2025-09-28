@@ -129,6 +129,11 @@ class CanvasUtils {
     this.scheduleReroute = throttle(() => this.rerouteWiresFor(this.selected), 50);
     this.lastReroutePositions = new Map();
     this._ghost = null; // { type, x,y, angle }
+    // multi-select / marquee
+    this.multiSelected = [];         // array of selected components
+    this.marquee = null;             // { x1,y1,x2,y2, active:boolean, persist:boolean } | null
+    this.marqueeEnabled = false;   // ← marquee (box select) OFF by default
+
 
    // ✅ device pixel ratio
     this.dpr = window.devicePixelRatio || 1;
@@ -137,6 +142,21 @@ class CanvasUtils {
     this.canvas.addEventListener("mousemove", this.handleMouseMove.bind(this));
     this.canvas.addEventListener("mouseup", this.handleMouseUp.bind(this));
   }
+
+  getMarqueeEnabled() { 
+  return !!this.marqueeEnabled; 
+}
+
+setMarqueeEnabled(on) {
+  this.marqueeEnabled = !!on;
+  // OFF hote hi running/persistent box clear + selection reset
+  if (!this.marqueeEnabled) {
+    this.marquee = null;
+    this.multiSelected = [];
+    this.draw();
+  }
+}
+
 
   // 🔵 set/clear ghost from React
 setPlacementGhost(ghost) {
@@ -1044,6 +1064,28 @@ rotatePoint90(p) {
 }
 
 deleteSelected() {
+  // If multi selection present, delete all of them (and their wires)
+if (this.multiSelected && this.multiSelected.length) {
+  const ids = new Set(this.multiSelected.map(c => c.id));
+
+  // remove components
+  this.components = this.components.filter(c => !ids.has(c.id));
+
+  // remove connected wires
+  this.wires = this.wires.filter(w => {
+    const fromId = w?.from?.compId;
+    const toId   = w?.to?.compId;
+    return !(ids.has(fromId) || ids.has(toId));
+  });
+
+  // clear selection + marquee
+  this.multiSelected = [];
+  this.marquee = null;
+
+  this.draw();
+  return;            // ✅ single-delete logic niche rehne do (unchanged)
+}
+
   const comp = this.selected;
   if (!comp) return;
 

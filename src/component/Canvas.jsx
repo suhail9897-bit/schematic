@@ -176,6 +176,15 @@ const Canvas = React.forwardRef((props, ref) => {
       toggleDeviceLabelsVisible: () => engineRef.current?.toggleDeviceLabelsVisible?.(),
       setPropertyLabelsVisible: (v) => engineRef.current?.setPropertyLabelsVisible?.(v),
       getPropertyLabelsVisible: () => engineRef.current?.getPropertyLabelsVisible?.(),
+      // Marquee select (box select) proxies
+      getMarqueeEnabled: () => !!engineRef.current?.getMarqueeEnabled?.(),
+      setMarqueeEnabled: (on) => engineRef.current?.setMarqueeEnabled?.(on),
+      toggleMarqueeEnabled: () => {
+        const next = !engineRef.current?.getMarqueeEnabled?.();
+        engineRef.current?.setMarqueeEnabled?.(next);
+        return next;
+      },
+
 
     }),
     []

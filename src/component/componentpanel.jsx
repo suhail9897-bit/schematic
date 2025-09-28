@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FaDownload, FaTrashAlt,  FaBroom, FaUpload } from 'react-icons/fa';
-import { MdRotateRight, MdRotateLeft, MdUndo, MdRedo } from "react-icons/md";
+import { MdRotateRight, MdRotateLeft, MdUndo, MdRedo, MdSelectAll } from "react-icons/md";
 import { FiEye,  FiEyeOff } from "react-icons/fi";
 import Tooltip from '../extraFiles/tooltip';
 import Toggle from '../dropdowns/toggle';
@@ -64,6 +64,8 @@ const EyeLetterBtn = ({ label, onClick, open = true }) => (
   </button>
 );
 
+
+
 const ComponentPanel = ({ 
   canvasRef,
   onResistorClick,
@@ -110,6 +112,23 @@ useEffect(() => {
   const p = canvasRef?.current?.getPropertyLabelsVisible?.();
   if (typeof p === 'boolean') setPropsVisible(p);
 }, [canvasRef]);
+
+// panel component function ke start me:
+const [multiSelOn, setMultiSelOn] = useState(false);
+
+useEffect(() => {
+  // read current from canvas once when panel mounts
+  const on = !!canvasRef.current?.getMarqueeEnabled?.();
+  setMultiSelOn(on);
+}, [canvasRef]);
+
+// small inline icon (dashed rectangle)
+const MarqueeIcon = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <rect x="4" y="6" width="16" height="16" stroke="currentColor" strokeDasharray="3 2" strokeWidth="2" rx="2" ry="2"/>
+  </svg>
+);
+
 
    return (
     <div className="h-[50px] bg-[#1e1e1e] text-white flex items-center justify-between px-5 border-b border-[#333] flex-shrink-0 gap-2 relative z-50">
@@ -284,6 +303,21 @@ useEffect(() => {
             <FaUpload size={15} />
             </button>
           </Tooltip>
+
+          <Tooltip text="Select multiple">
+  <button
+    className={`${btn} ${multiSelOn ? 'ring-2 ring-green-400 ring-offset-2 ring-offset-[#1e1e1e]' : ''}`}
+    onClick={() => {
+      const next = !multiSelOn;
+      setMultiSelOn(next);
+      canvasRef.current?.setMarqueeEnabled?.(next);
+    }}
+    
+  >
+   <MdSelectAll size={16} />
+  </button>
+</Tooltip>
+
 
       </div>
       </div>

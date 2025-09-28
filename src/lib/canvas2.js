@@ -31,6 +31,22 @@ function areBoxesOverlapping(a, b, boxSize = 120) {
 }
 
 
+function _componentsInRect(components, rect, boxSize = 120) {
+  const half = boxSize / 2;
+  const contains = (cx, cy) =>
+    cx - half >= rect.x1 && cx + half <= rect.x2 &&
+    cy - half >= rect.y1 && cy + half <= rect.y2;
+
+  return components.filter(c => {
+    const x1 = Math.min(rect.x1, rect.x2);
+    const y1 = Math.min(rect.y1, rect.y2);
+    const x2 = Math.max(rect.x1, rect.x2);
+    const y2 = Math.max(rect.y1, rect.y2);
+    return contains(c.x, c.y); // center based (same 120 box convention)
+  });
+}
+
+
 
 // Install only the draw() method on the prototype (mixin style)
 export function installDraw(proto) {
@@ -114,9 +130,10 @@ const labelWorld = (comp, t) => {
 
 
 
-
     for (const comp of this.components) {
-      const isSelected = this.selected === comp;
+      const isSelected =
+  this.selected === comp || (this.multiSelected?.includes(comp));
+
 
       // 🔴 overlap highlight (selected vs targets)
       if (this.dragging && this.selected && comp !== this.selected) {
@@ -427,6 +444,23 @@ if (this._ghost && this._ghost.type) {
       this.ctx.stroke();
     }
 
+    // ⬛ Marquee overlay (active ya persist dono me)
+if (this.marquee && (this.marquee.active || this.marquee.persist)) {
+  const { x1, y1, x2, y2 } = this.marquee;
+  const x = Math.min(x1, x2), y = Math.min(y1, y2);
+  const w = Math.abs(x2 - x1), h = Math.abs(y2 - y1);
+
+  this.ctx.save();
+  this.ctx.lineWidth = 1 / this.scale;
+  this.ctx.setLineDash([4, 2]);
+  this.ctx.strokeStyle = 'rgba(0,160,255,0.9)';
+  this.ctx.fillStyle   = 'rgba(0,160,255,0.15)';
+  this.ctx.strokeRect(x, y, w, h);
+  this.ctx.fillRect(x, y, w, h);
+  this.ctx.restore();
+}
+
+
     this.ctx.restore();
      if (this.uiHooks?.onViewport) {
       this.uiHooks.onViewport(this.getViewport());
@@ -482,6 +516,12 @@ if (this.uiHooks?.onWireHit) this.uiHooks.onWireHit(null);
         const dist = Math.sqrt(dx * dx + dy * dy);
 
         if (dist < 8) {
+            // ⬇️ If a marquee exists and we clicked a terminal of a component
+  // that is NOT in current multiSelect → collapse the marquee
+  if (this.marquee && (!this.multiSelected || !this.multiSelected.includes(comp))) {
+    this.marquee = null;
+    this.multiSelected = [];
+  }
           this.selectedTerminals.push({ comp, index: i });
           // console.log('✅ Terminal selected:', comp.type, 'index:', i);
           clickedOnTerminal = true;
@@ -549,6 +589,13 @@ if (this.uiHooks?.onWireHit) this.uiHooks.onWireHit(null);
         x >= comp.x - 40 && x <= comp.x + 40 &&
         y >= comp.y - 40 && y <= comp.y + 40
       ) {
+         // ⬇️ Clicking a component while a marquee is visible:
+    // if the component is NOT part of multiSelected → hide box + clear selection
+    if (this.marquee && (!this.multiSelected || !this.multiSelected.includes(comp))) {
+      this.marquee = null;
+      this.multiSelected = [];
+    }
+
         this.selected = comp;
         this.dragging = true;
 
@@ -562,7 +609,18 @@ if (this.uiHooks?.onWireHit) this.uiHooks.onWireHit(null);
     }
 
     // 🧹 Clear component selection if clicked on empty area
-    this.selected = null;
+   // 🧹 Empty area click
+if (this.marqueeEnabled) {
+  // 📦 Start marquee ONLY when enabled
+  this._marqueeStart = { x, y };
+  this.marquee = { x1: x, y1: y, x2: x, y2: y, active: true, persist: false };
+  this.multiSelected = [];
+} else {
+  // marquee mode OFF → ensure no box is shown
+  this.marquee = null;
+  this.multiSelected = [];
+}
+this.selected = null;
     this.draw();
   };
 }
@@ -580,6 +638,20 @@ export function installMouseMoveUpZoom(proto) {
   };
 
   proto.handleMouseMove = function handleMouseMove(e) {
+    // 📦 Marquee live update
+if (this.marquee && this.marquee.active) {
+  const { x, y } = this.toWorldCoords(e.offsetX, e.offsetY);
+  this.marquee.x2 = x;
+  this.marquee.y2 = y;
+
+  // live highlight: jo box me aaye unhe select dikhao
+  const rect = this.marquee;
+  this.multiSelected = _componentsInRect(this.components, rect);
+
+  this.draw();
+  return;   // marquee mode consumes the move
+}
+
     if (!this.dragging || !this.selected) return;
 
     const { x, y } = this.toWorldCoords(e.offsetX, e.offsetY);
@@ -599,6 +671,17 @@ export function installMouseMoveUpZoom(proto) {
   };
 
   proto.handleMouseUp = function handleMouseUp() {
+    // 📦 Finalize marquee selection (keep box until delete)
+if (this.marquee && this.marquee.active) {
+  this.marquee.active  = false;
+  this.marquee.persist = true;      // box visible until user deletes / clears
+  // final selection already in multiSelected (from move); safety recompute:
+  const rect = this.marquee;
+  this.multiSelected = _componentsInRect(this.components, rect);
+  this.draw();
+  return;
+}
+
     if (this.selected && this.isOverlapping(this.selected.x, this.selected.y, this.selected)) {
       // ⛔ overlapping — snap back
       this.selected.x = this.lastSafeX;
