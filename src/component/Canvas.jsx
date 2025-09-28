@@ -178,7 +178,14 @@ const Canvas = React.forwardRef((props, ref) => {
       getPropertyLabelsVisible: () => engineRef.current?.getPropertyLabelsVisible?.(),
       // Marquee select (box select) proxies
       getMarqueeEnabled: () => !!engineRef.current?.getMarqueeEnabled?.(),
-      setMarqueeEnabled: (on) => engineRef.current?.setMarqueeEnabled?.(on),
+      // Canvas.jsx (inside useImperativeHandle return object)
+      setMarqueeEnabled: (on) => {
+        engineRef.current?.setMarqueeEnabled?.(on);
+        if (canvasRef.current) {
+          canvasRef.current.style.cursor = on ? 'crosshair' : '';
+        }
+      },
+
       toggleMarqueeEnabled: () => {
         const next = !engineRef.current?.getMarqueeEnabled?.();
         engineRef.current?.setMarqueeEnabled?.(next);
