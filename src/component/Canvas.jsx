@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useImperativeHandle, useState } from "react";
 import CanvasEngine from "../lib/canvas";
+import { extractBoxSpecFromDesign } from "../lib/parseBoxFromDesign";
 import DownloadPopup from "../extraFiles/downloadpopup";
-import { buildAndDownloadNetlist } from "./netlist";
+import { buildAndDownloadNetlist, buildNetlistString } from "./netlist";
 import WireActions from "../extraFiles/Wirecolor";
 
 const Canvas = React.forwardRef((props, ref) => {
@@ -99,6 +100,20 @@ const Canvas = React.forwardRef((props, ref) => {
   useImperativeHandle(
     ref,
     () => ({
+
+          // Create subckt box from uploaded design JSON
+      createBoxFromDesign: (json, filename = "DESIGN") => {
+        try {
+          const spec = extractBoxSpecFromDesign(json, filename);
+          return engineRef.current?.addSubcktBox?.(spec);
+        } catch (e) {
+          console.error(e);
+          alert("Could not create box from this file.");
+          return null;
+        }
+      },
+       getNetlistString: (cellName = "CIRCUIT") =>
+       buildNetlistString(engineRef.current, cellName),
       // component add
       // 🔵 SMART-DRAW togglers (icons call these)
       togglePlacement: (type) => {

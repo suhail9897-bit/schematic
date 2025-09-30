@@ -12,10 +12,25 @@ import { createRoot } from "react-dom/client";
 
    const doSave = (rawName) => {
      try {
-       const safe = (rawName || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 24);
-       const snap = canvasRef?.current?.exportDesignFile?.();
-       if (!snap) return close();
-       const blob = new Blob([JSON.stringify(snap, null, 2)], { type: "application/json" });
+      const safe = (rawName || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 24);
+      const snap = canvasRef?.current?.exportDesignFile?.();
+      if (!snap) return close();
+
+      // 🔹 same builder as ".cir" download, so text 1:1 match karega
+      const cell = safe || "CIRCUIT";
+      const netText = canvasRef?.current?.getNetlistString?.(cell) || "";
+
+      // 🔹 JSON ke end me ek last property: exact netlist text
+        const enriched = {
+        ...snap,
+       
+        // human-readable view — har entry ek line, blank gaps = ""
+        __NETLIST_CIR_LINES: netText.split("\n")
+      };
+
+      const blob = new Blob([JSON.stringify(enriched, null, 2)], {
+        type: "application/json"
+      });
        const a = document.createElement("a");
        const stamp = new Date().toISOString().replace(/[:.]/g, "-");
        const base = safe || `design-${stamp}`;

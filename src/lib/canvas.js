@@ -91,6 +91,7 @@ import {
 
 import { aStarOrthogonalPath,  deleteWireById, hitTestAllWires} from './wire.js';
 import throttle from 'lodash/throttle';
+import { getSubcktBoxTerminals } from './subcktbox';
 
 import { installDraw,
    installHandleMouseDown,
@@ -142,6 +143,46 @@ class CanvasUtils {
     this.canvas.addEventListener("mousemove", this.handleMouseMove.bind(this));
     this.canvas.addEventListener("mouseup", this.handleMouseUp.bind(this));
   }
+
+  // Add a subcircuit box component at origin (grid-snap), with safety checks
+addSubcktBox(spec = {}) {
+  const g = this.gridSize || 30;
+  const snap = (n) => Math.round(n / g) * g;
+
+  // origin center (red cross)
+  const x = snap(0), y = snap(0);
+
+  // if something is already at origin, politely ask to move
+  if (this._overlapsAnyComponent(x, y)) {
+    alert("Move the component near origin and try again (box needs the origin).");
+    return null;
+  }
+
+  const comp = {
+    id: `subcktbox${Date.now()}`,
+    type: 'subcktbox',
+    x, y,
+    angle: 0,
+    label: (spec.name || 'BLOCK').toUpperCase(),
+    subckt: {
+      name: (spec.name || 'BLOCK').toUpperCase(),
+      inputs: Array.isArray(spec.inputs) ? spec.inputs : [],
+      output: spec.output || 'OUT',
+      powers: Array.isArray(spec.powers) ? spec.powers : [],
+      grounds: Array.isArray(spec.grounds) ? spec.grounds : [],
+    },
+    terminals: []
+  };
+
+  // compute terminals (tips of stubs, all on-grid)
+  comp.terminals = getSubcktBoxTerminals(comp, g);
+
+  this.components.push(comp);
+  this.selected = comp;
+  this.draw();
+  return comp;
+}
+
 
   getMarqueeEnabled() { 
   return !!this.marqueeEnabled; 

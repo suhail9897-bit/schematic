@@ -94,6 +94,26 @@ const ComponentPanel = ({
   onClearAllClick,
   onResetViewClick
   }) => {
+
+  // hidden input for "Create box"
+  const boxFileRef = React.useRef(null);
+  const handleCreateBoxPick = () => boxFileRef.current?.click();
+  const handleCreateBoxFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const json = JSON.parse(String(reader.result || '{}'));
+        canvasRef.current?.createBoxFromDesign?.(json, file.name);
+      } catch (err) {
+        alert('Invalid design JSON for box.');
+      } finally {
+        e.target.value = '';
+      }
+    };
+    reader.readAsText(file);
+  };
   
 
  const btn = "bg-[#1e1e1e] text-white px-2 py-1.5 rounded hover:bg-[#555] transition ";
@@ -317,6 +337,19 @@ const MarqueeIcon = ({ size = 16 }) => (
    <MdSelectAll size={16} />
   </button>
 </Tooltip>
+
+  <Tooltip text="Create box">
+    <button className={btn} onClick={handleCreateBoxPick}>
+      <FaUpload size={15} />
+    </button>
+  </Tooltip>
+  <input
+    ref={boxFileRef}
+    type="file"
+    accept="application/json"
+    onChange={handleCreateBoxFile}
+    style={{ display: 'none' }}
+  />
 
 
       </div>

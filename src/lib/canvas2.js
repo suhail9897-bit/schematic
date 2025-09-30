@@ -18,7 +18,7 @@ import { drawNAND } from './nand';
 import { drawNOR } from './nor';
 import { drawXOR } from './xor';
 import { aStarOrthogonalPath, hitTestAllWires } from './wire.js';
-
+import { drawSubcktBox } from './subcktbox';
 // same utility logic used in original file
 function areBoxesOverlapping(a, b, boxSize = 120) {
   const half = boxSize / 2;
@@ -290,8 +290,11 @@ drawWithRotation((cx, cy) => drawInductor(this.ctx, cx, cy, this.scale, text, is
   this.ctx.fillText(props, cx, cy + yOff);
 }
 
-  });
-     } else {
+  }); } else if (comp.type === 'subcktbox') {
+        drawWithRotation((cx, cy) =>
+          drawSubcktBox(this.ctx, cx, cy, this.scale, comp, isSelected, this.gridSize)
+        );
+       } else {
   const nameR = deviceNamesOn() ? (comp.label || 'R') : '';
 const valR  = propsOn() ? ` (${valueLabelFor(comp)})` : '';
 const text  = `${nameR}${valR}`;
