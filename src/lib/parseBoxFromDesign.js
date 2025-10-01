@@ -106,6 +106,8 @@ return {
   output,
   powers: uniqOrder(powers),
   grounds: uniqOrder(grounds),
+    // carry full library text for emission in netlist
+  cirLines: Array.isArray(design.__NETLIST_CIR_LINES) ? design.__NETLIST_CIR_LINES.map(String) : []
 };
 
 }

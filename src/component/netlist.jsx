@@ -124,6 +124,23 @@ function buildNetlistString(engine, rawCellName) {
     lines.push('');
   }
 
+    // ---- External subcircuit libraries from uploaded "box" components ----
+  // We emit each unique subckt library once, before the top-level .SUBCKT.
+  const seenLibs = new Set();
+  for (const c of engine.components) {
+    const sc = c && c.subckt;
+    if (!sc) continue;
+    const lib = Array.isArray(sc.cirLines) ? sc.cirLines : null;
+    const key = (sc.name || '').toUpperCase();
+    if (lib && lib.length && key && !seenLibs.has(key)) {
+      // keep exactly as provided (user wanted 1:1 spacing)
+      lines.push('');
+      lib.forEach(line => lines.push(String(line)));
+      seenLibs.add(key);
+    }
+  }
+
+
   // ---- Top level pins from IO blocks ----
   const inPins  = [];
   const outPins = [];
@@ -354,6 +371,31 @@ function buildNetlistString(engine, rawCellName) {
         lines.push(`X${name} ${pins.join(' ')} ${subckt} WP=${Wp} WN=${Wn} L=${L} M=${M}`);
         break;
       }
+
+      case "subckt":
+      case "subcktbox":
+      case "subckt-box":
+      case "box": {
+        // Uploaded design "box"
+        const sc = comp.subckt || {};
+        const OUT  = NN(sc.output || comp.terminals?.[1]?.netLabel || 'OUT');
+        const INPS = Array.isArray(sc.inputs)  ? sc.inputs.map(NN)  : [];
+        const POW  = Array.isArray(sc.powers)  ? sc.powers.map(NN)  : [];
+        const GND  = Array.isArray(sc.grounds) ? sc.grounds.map(NN) : [];
+
+        // Instance name: X + label (or subckt name)
+        const rawLabel = (comp.label?.split(' ')[0] || sc.name || 'BOX');
+        const inst = rawLabel.startsWith('X') ? rawLabel : ('X' + rawLabel);
+
+        // Final pin order: OUT, then inputs, then powers, then grounds
+        const pins = [OUT, ...INPS, ...POW, ...GND].filter(Boolean);
+
+        // Subckt ref = uploaded design name (uppercased)
+        const ref = NN(sc.name || 'BOX');
+        lines.push(`${inst} ${pins.join(' ')} ${ref}`);
+        break;
+      }
+
 
       default:
         lines.push(`${name} ${n1} ${n2} ${val}`);
