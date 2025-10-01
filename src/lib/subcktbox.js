@@ -21,6 +21,8 @@ function measureBox(comp, grid) {
   return { g, nIn, nTop, nBot, bodyW, bodyH, halfW, halfH, pinStep };
 }
 
+
+
 export function getSubcktBoxTerminals(comp, grid) {
   const { g, nIn, nTop, nBot, halfW, halfH, bodyW, pinStep } = measureBox(comp, grid);
 

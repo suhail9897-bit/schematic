@@ -19,16 +19,16 @@ export function drawInOut(ctx, x, y, scale = 1, label = 'IN-OUT', isSelected = f
   ctx.stroke();
 
   // Right line
-  ctx.beginPath();
-  ctx.moveTo(40, 0);
-  ctx.lineTo(59, 0);
-  ctx.stroke();
+  // ctx.beginPath();
+  // ctx.moveTo(40, 0);
+  // ctx.lineTo(59, 0);
+  // ctx.stroke();
 
   // Right terminal circle
-  ctx.beginPath();
-  ctx.arc(60, 0, 4, 0, Math.PI * 2);
-  ctx.fillStyle = fillColor;
-  ctx.fill();
+  // ctx.beginPath();
+  // ctx.arc(60, 0, 4, 0, Math.PI * 2);
+  // ctx.fillStyle = fillColor;
+  // ctx.fill();
 
   // Trapezoid body
   ctx.beginPath();
@@ -58,6 +58,6 @@ export function drawInOut(ctx, x, y, scale = 1, label = 'IN-OUT', isSelected = f
 export function getINOUTTerminals(centerX, centerY) {
   return [
     { x: centerX - 60, y: centerY },
-    { x: centerX + 60, y: centerY }
+    // { x: centerX + 60, y: centerY }
   ];
 }

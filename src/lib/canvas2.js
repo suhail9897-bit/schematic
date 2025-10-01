@@ -338,9 +338,16 @@ if (comp.terminals) {
       this.ctx.textBaseline = 'bottom';
       this.ctx.fillText(terminal.netLabel, globalX, globalY - 8);
     }
+     const r = 2 / this.scale;
+    this.ctx.fillStyle = 'cyan';
     this.ctx.beginPath();
-    this.ctx.arc(globalX, globalY, 2 / this.scale, 0, Math.PI * 2);
+    this.ctx.arc(globalX, globalY, r, 0, Math.PI * 2);
     this.ctx.fill();
+    this.ctx.strokeStyle = '#ffffff';
+    this.ctx.lineWidth = 2 / this.scale;
+    this.ctx.beginPath();
+    this.ctx.arc(globalX, globalY, r, 0, Math.PI * 2);
+    this.ctx.stroke();
   }
 }
 
@@ -432,7 +439,7 @@ if (this._ghost && this._ghost.type) {
       this.ctx.beginPath();
       this.ctx.arc(globalX, globalY, 6, 0, 2 * Math.PI);
       this.ctx.strokeStyle = 'yellow';
-      this.ctx.lineWidth = 5 / this.scale;
+      this.ctx.lineWidth = 3 / this.scale;
       this.ctx.stroke();
     }
 

@@ -57,6 +57,15 @@ export function drawNAND(ctx, centerX, centerY, scale = 1, label = 'NAND', isSel
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
   ctx.fillText(label, centerX, centerY - 10);
+   // ▼ NEW: label के नीचे छोटा VDD/VSS टेक्स्ट (default + live)
+  const vddTxt = (comp?.nand?.vddNet ?? 'VDD');
+  const vssTxt = (comp?.nand?.vssNet ?? 'VSS');
+
+  ctx.font = `${8}px sans-serif`;
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = isSelected ? 'yellow' : '#9aa4b2';  // हल्का सा contrast
+  // label के ठीक नीचे, गेट के अंदर
+  ctx.fillText(`${vddTxt}   ${vssTxt}`, centerX, centerY + 2);
 
   ctx.restore();
 }
@@ -134,6 +143,17 @@ export function setNandFromUIFor(comp, patch = {}) {
   if (typeof patch.name !== "undefined") {
     comp.label = sanitizeLabel(patch.name);
   }
+
+    // NEW: power/ground from Nets/Ports tab
+  if (typeof patch.vddNet !== "undefined") {
+    const s = String(patch.vddNet || '').trim();
+    comp.nand.vddNet = s || "VDD";
+  }
+  if (typeof patch.vssNet !== "undefined") {
+    const s = String(patch.vssNet || '').trim();
+    comp.nand.vssNet = s || "VSS";
+  }
+
 
   // numeric fields (µm for L/W; unitless m)
   if (typeof patch.Wn !== "undefined") comp.nand.Wn = toNum(patch.Wn, 0.05, 10000);

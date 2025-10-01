@@ -58,6 +58,14 @@ export function drawNOR(ctx, centerX, centerY, scale = 1, label = 'NOR', isSelec
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
   ctx.fillText(label, centerX - 10, centerY - 8);
+  // ▼ NEW: NOR ke label ke niche VDD / VSS show (default + live)
+  const vddTxt = (comp?.nor?.vddNet ?? 'VDD');
+  const vssTxt = (comp?.nor?.vssNet ?? 'VSS');
+
+  ctx.font = `${8}px sans-serif`;
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = isSelected ? 'yellow' : '#9aa4b2';
+  ctx.fillText(`${vddTxt}   ${vssTxt}`, centerX - 10, centerY + 2);
   ctx.restore();
 }
 

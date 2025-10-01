@@ -88,5 +88,24 @@ export function extractBoxSpecFromDesign(design = {}, filename = "DESIGN") {
     }
   }
 
-  return { name, inputs, output, powers, grounds };
+  // --- add just above the return ---
+const uniqOrder = (arr) => {
+  const seen = new Set();
+  const out = [];
+  for (const v of arr) {
+    const key = String(v || "").toUpperCase();
+    if (!seen.has(key)) { seen.add(key); out.push(key); }
+  }
+  return out;
+};
+
+// replace the old return with this:
+return {
+  name,
+  inputs,
+  output,
+  powers: uniqOrder(powers),
+  grounds: uniqOrder(grounds),
+};
+
 }

@@ -55,11 +55,19 @@ export function drawXOR(ctx, cx, cy, scale = 1, label = 'XOR', isSelected = fals
   ctx.fill();
 
   // label
-  ctx.font = `${14/scale}px sans-serif`;
+  ctx.font = `${14}px sans-serif`;
   ctx.fillStyle = isSelected ? 'yellow' : '#ccc';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
   ctx.fillText(label, cx, cy - 6);
+   // ▼ NEW: label ke niche VDD / VSS (default + live from Nets/Ports)
+  const vddTxt = (comp?.xor?.vddNet ?? 'VDD');
+  const vssTxt = (comp?.xor?.vssNet ?? 'VSS');
+
+  ctx.font = `${8}px sans-serif`;
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = isSelected ? 'yellow' : '#9aa4b2';
+  ctx.fillText(`${vddTxt}   ${vssTxt}`, cx, cy + 2);
 
   ctx.restore();
 }
