@@ -110,6 +110,12 @@ const maybeName = (comp, fallback) =>
 const labelWorld = (comp, t) => {
   const lx = t.x, ly = t.y;
 
+  // ⬅️⬅️ ADD this early-return (NEW)
+  if (comp?.type === 'subcktbox') {
+    // subckt boxes ke labels hamesha component-local follow karenge
+    return { x: comp.x + lx, y: comp.y + ly };
+  }
+
   // old designs ya world-coord terminals
   if (t.terminalSpace === 'world' || Math.abs(lx) > 200 || Math.abs(ly) > 200) {
     return { x: lx, y: ly };

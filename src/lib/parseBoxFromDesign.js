@@ -53,6 +53,7 @@ export function extractBoxSpecFromDesign(design = {}, filename = "DESIGN") {
     });
     defs.set(subName, { pins, pIdx, gIdx });
   }
+  
 
   // 3b) last .SUBCKT block locate karo (usi ke instances scan karenge)
   let start = -1, end = -1;
@@ -91,7 +92,43 @@ export function extractBoxSpecFromDesign(design = {}, filename = "DESIGN") {
     }
   }
 
-  
+  // ---- helper: parse appended HIER_META v1 comment block (NET PASS)
+function parseHierMeta(lines = []) {
+  const up = (s) => String(s || "").toUpperCase();
+  const res = { unionP: [], unionG: [] };
+  if (!Array.isArray(lines) || !lines.length) return res;
+
+  // locate BEGIN/END
+  let b = -1, e = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (/^\s*\*\s*====\s*HIER_META\s*v1\s*BEGIN\s*====\s*$/i.test(lines[i])) { b = i; break; }
+  }
+  if (b < 0) return res;
+  for (let j = b + 1; j < lines.length; j++) {
+    if (/^\s*\*\s*====\s*HIER_META\s*v1\s*END\s*====\s*$/i.test(lines[j])) { e = j; break; }
+  }
+  const blk = (e > b) ? lines.slice(b + 1, e) : [];
+
+  const getList = (key) => {
+    const re = new RegExp("^\\s*\\*\\s*" + key + "\\s*:\\s*(.*)$", "i");
+    const ln = blk.find(s => re.test(s));
+    if (!ln) return [];
+    const body = ln.replace(re, "$1").trim();
+    if (!body) return [];
+    return body.split(",").map(s => up(s.trim())).filter(Boolean);
+  };
+
+  res.unionP = getList("union_powers");
+  res.unionG = getList("union_grounds");
+  return res;
+}
+
+// Prefer NET PASS meta if present
+const meta = parseHierMeta(cirLines);  // 'cirLines' already built above
+const preferredP = Array.isArray(meta.unionP) && meta.unionP.length ? meta.unionP : powers;
+const preferredG = Array.isArray(meta.unionG) && meta.unionG.length ? meta.unionG : grounds;
+
+
 
   // --- add just above the return ---
 const uniqOrder = (arr) => {
@@ -109,8 +146,8 @@ return {
   name,
   inputs,
   output,
-  powers: uniqOrder(powers),
-  grounds: uniqOrder(grounds),
+  powers: uniqOrder(preferredP),
+  grounds: uniqOrder(preferredG),
   cirLines,         // NEW: full library as-is (stringified)
   lastSubckt        // NEW: { name, blockLines, blockText }
     // carry full library text for emission in netlist

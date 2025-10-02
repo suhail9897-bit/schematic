@@ -20,12 +20,99 @@ import { createRoot } from "react-dom/client";
       const cell = safe || "CIRCUIT";
       const netText = canvasRef?.current?.getNetlistString?.(cell) || "";
 
+      // --- NET PASS v1: Build HIER_META comment block from current snapshot ---
+const wires = Array.isArray(snap?.wires) ? snap.wires : [];
+const comps  = Array.isArray(snap?.components) ? snap.components : [];
+const boxes = comps.filter(c => c?.type === "subcktbox");
+
+const getWireNet = (w) => (w?.netLabel || w?.from?.netLabel || w?.to?.netLabel || "");
+const netFor = (compId, termIdx) => {
+  for (const w of wires) {
+    if (w?.from?.compId === compId && w?.from?.terminalIndex === termIdx) return getWireNet(w);
+    if (w?.to?.compId   === compId && w?.to?.terminalIndex   === termIdx) return getWireNet(w);
+  }
+  return "";
+};
+const uniqPush = (arr, v) => {
+  const k = String(v || "").toUpperCase();
+  if (!k) return;
+  if (!arr.some(x => String(x).toUpperCase() === k)) arr.push(v);
+};
+
+const metaLines = [];
+const unionP = [], unionG = [];
+const perBox = [];
+
+for (const b of boxes) {
+const s = b.subckt || {};
+const subcktName = s.name || b.label || "BOX";
+
+// Prefer reading directly from the component's terminals (snapshot-safe)
+const terms = Array.isArray(b.terminals) ? b.terminals : [];
+let p = [], g = [];
+
+if (terms.length) {
+  // top row = minY → powers, bottom row = maxY → grounds
+  const ys = terms.map(t => Number(t?.y ?? 0));
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+
+  p = terms.filter(t => Number(t?.y ?? 0) === minY)
+           .map(t => String(t?.netLabel || "").toUpperCase())
+           .filter(Boolean);
+  g = terms.filter(t => Number(t?.y ?? 0) === maxY)
+           .map(t => String(t?.netLabel || "").toUpperCase())
+           .filter(Boolean);
+
+  p.forEach(v => uniqPush(unionP, v));
+  g.forEach(v => uniqPush(unionG, v));
+} else {
+  // Fallback (older snapshots): use counts from spec + wiring map
+  const nIn  = Array.isArray(s.inputs)  ? s.inputs.length  : 0;
+  const nTop = Array.isArray(s.powers)  ? s.powers.length  : 0;
+  const nBot = Array.isArray(s.grounds) ? s.grounds.length : 0;
+
+  for (let i = 0; i < nTop; i++) {
+    const idx = nIn + 1 + i;
+    const lab = (netFor(b.id, idx) || String(s.powers[i] || "")).toUpperCase();
+    if (lab) { p.push(lab); uniqPush(unionP, lab); }
+  }
+  for (let i = 0; i < nBot; i++) {
+    const idx = nIn + 1 + nTop + i;
+    const lab = (netFor(b.id, idx) || String(s.grounds[i] || "")).toUpperCase();
+    if (lab) { g.push(lab); uniqPush(unionG, lab); }
+  }
+}
+
+perBox.push({
+  label: b.label || subcktName || "BOX",
+  subckt: subcktName,
+  powers: p,
+  grounds: g
+});
+
+}
+
+metaLines.push("* ==== HIER_META v1 BEGIN ====");
+metaLines.push(`* summary: boxes_used=${perBox.length}`);
+metaLines.push(`* union_powers: ${unionP.join(",")}`);
+metaLines.push(`* union_grounds: ${unionG.join(",")}`);
+for (const e of perBox) {
+  metaLines.push(`* box: label=${e.label} subckt=${e.subckt} powers=${e.powers.join(",")} grounds=${e.grounds.join(",")}`);
+}
+metaLines.push("* ==== HIER_META v1 END ====");
+
+// final netlist lines + meta comments appended at the end
+const cirLinesWithMeta = netText.split("\n").concat(["", ...metaLines]);
+
+
       // 🔹 JSON ke end me ek last property: exact netlist text
         const enriched = {
         ...snap,
        
         // human-readable view — har entry ek line, blank gaps = ""
-        __NETLIST_CIR_LINES: netText.split("\n")
+         __NETLIST_CIR_LINES: cirLinesWithMeta
+
       };
 
       const blob = new Blob([JSON.stringify(enriched, null, 2)], {
