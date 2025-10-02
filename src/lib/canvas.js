@@ -1152,7 +1152,7 @@ if (this.multiSelected && this.multiSelected.length) {
   this.selectedTerminals = [];
 
   // 4) recompute nets for remaining circuit
-  // this.recomputeNets();
+  this.recomputeNets();
 
   // 5) redraw
   this.draw();
@@ -1161,6 +1161,27 @@ if (this.multiSelected && this.multiSelected.length) {
 
 // Recompute net labels from scratch using remaining wires
 recomputeNets() {
+
+  // --- helpers for stable net naming ---
+const isAuto = (s) => typeof s === 'string' && /^net\d+$/i.test(s);
+
+// snapshot old labels (before we touch anything)
+const oldLabelByNode = new Map();   // key: `${comp.id}:${ti}`
+for (const comp of this.components) {
+  const terms = comp.terminals || [];
+  terms.forEach((t, ti) => {
+    oldLabelByNode.set(`${comp.id}:${ti}`, t?.netLabel || '');
+  });
+}
+
+// compute the highest auto net number already present (to keep increment monotonic)
+let maxAuto = 0;
+for (const s of oldLabelByNode.values()) {
+  const m = (typeof s === 'string') && s.match(/^net(\d+)$/i);
+  if (m) maxAuto = Math.max(maxAuto, parseInt(m[1], 10));
+}
+let nextAuto = maxAuto + 1;
+
   // DSU helpers
   const parent = new Map();
   const nodeId = (compId, ti) => `${compId}:${ti}`;
@@ -1195,21 +1216,59 @@ recomputeNets() {
   }
 
   // 3) assign fresh net labels per connected component
-  const rootToNet = new Map();
-  let counter = 1;
-  for (const comp of this.components) {
-    if (!comp.terminals) continue;
-    comp.terminals.forEach((t, i) => {
-      const id = nodeId(comp.id, i);
-      if (!parent.has(id)) return;
-      const r = find(id);
-      if (!rootToNet.has(r)) rootToNet.set(r, `net${counter++}`);
-      t.netLabel = rootToNet.get(r);
-    });
-  }
+  // 3) build connected groups from DSU
+const rootMembers = new Map(); // root -> [{compId, termIndex}]
+for (const comp of this.components) {
+  const terms = comp.terminals || [];
+  terms.forEach((_, i) => {
+    const id = `${comp.id}:${i}`;
+    if (!parent.has(id)) return;
+    const r = find(id);
+    if (!rootMembers.has(r)) rootMembers.set(r, []);
+    rootMembers.get(r).push({ compId: comp.id, termIndex: i });
+  });
+}
 
-  // keep counter moving forward for any future terminals
-  this.netCounter = counter;
+// Convert to "groups" like your patch expects
+const groups = Array.from(rootMembers.values()).map(members => ({ members }));
+
+// --- candidate selection & stable assignment (pref: custom > old auto > new auto) ---
+const bundle = groups.map(g => {
+  const ids = g.members.map(m => `${m.compId}:${m.termIndex}`);
+  const names = ids.map(id => oldLabelByNode.get(id)).filter(Boolean);
+
+  const custom = names.find(n => n && !isAuto(n));  // user-named label?
+  const oldAuto = names.find(n => isAuto(n));       // keep old auto if possible
+  const cand = custom || oldAuto || null;
+
+  return { g, ids, size: ids.length, cand };
+});
+
+// Largest groups first -> keeps old numbers on the “main” piece after a split
+bundle.sort((a, b) => b.size - a.size);
+
+const used = new Set();
+for (const b of bundle) {
+  let label = b.cand;
+  if (!label) label = `net${nextAuto++}`;      // allocate fresh
+  if (isAuto(label) && used.has(label)) {
+    label = `net${nextAuto++}`;                // avoid dup auto label
+  }
+  used.add(label);
+
+  // write label back
+  for (const id of b.ids) {
+    const [cid, tiStr] = id.split(':');
+    const comp = this.components.find(c => String(c.id) === cid);
+    const terms = comp?.terminals || [];
+    const ti = parseInt(tiStr, 10);
+    if (terms[ti]) terms[ti].netLabel = label;
+  }
+}
+
+// keep counter moving forward for any future terminals
+this.netCounter = nextAuto;
+
 }
 
 

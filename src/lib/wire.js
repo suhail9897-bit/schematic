@@ -232,7 +232,7 @@ export function deleteWireById(host, wireId) {
   if (idx >= 0) {
     host.wires.splice(idx, 1);
     // IMPORTANT: recompute net labels after topology change
-    // if (typeof host.recomputeNets === 'function') host.recomputeNets();
+    if (typeof host.recomputeNets === 'function') host.recomputeNets();
     if (typeof host.draw === 'function') host.draw();
   }
 }
