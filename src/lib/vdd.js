@@ -15,11 +15,19 @@ ctx.fillStyle = isSelected ? 'yellow' : '#ccc';
   // Line from dot to label
   ctx.beginPath();
   ctx.moveTo(-60, 0);
-  ctx.lineTo(-10, 0);
+  ctx.lineTo(0, 0);
   ctx.stroke();
 
+   // vertical short horizontal line
+  ctx.beginPath();
+  ctx.moveTo(-30, 0);
+  ctx.lineTo(-30, 30);
+  ctx.stroke();
+
+ctx.fillText('+', -42, 14);
+
   // Label
-  ctx.fillText(label, -9, 5);
+  ctx.fillText(label, -25, -5);
 
   ctx.restore();
 }

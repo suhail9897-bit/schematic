@@ -9,31 +9,31 @@ export function drawIN(ctx, x, y, scale = 1, label = 'IN', isSelected = false) {
   // Apply for all strokes
   ctx.strokeStyle = strokeColor;
 
-  // Left Port Circle
+  // Right Port Circle
   ctx.fillStyle = fillColor;
   ctx.beginPath();
-  ctx.arc(-60, 0, 4, 0, Math.PI * 2);
+  ctx.arc(60, 0, 4, 0, Math.PI * 2);
   ctx.fill();
 
-  // Left short horizontal line
+  // right short horizontal line
   ctx.beginPath();
-  ctx.moveTo(-59, 0);
-  ctx.lineTo(-30, 0);
+  ctx.moveTo(59, 0);
+  ctx.lineTo(30, 0);
   ctx.stroke();
 
   // Trapezoid body (only stroke, no fill)
   ctx.beginPath();
-  ctx.moveTo(-30, 0);
-  ctx.lineTo(-20, -10);
-  ctx.lineTo(30, -10);
-  ctx.lineTo(30, 10);
-  ctx.lineTo(-20, 10);
+  ctx.moveTo(-55, 10);
+  ctx.lineTo(-55, -10);
+  ctx.lineTo(10, -10);
+  ctx.lineTo(30, 0);
+  ctx.lineTo(10, 10);
   ctx.closePath();
   ctx.stroke();
 
   // Label
   ctx.fillStyle = fillColor;
-  ctx.font = `${12 / scale}px sans-serif`;
+  ctx.font = `${12 }px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(label, 0, 0);
@@ -45,6 +45,6 @@ export function drawIN(ctx, x, y, scale = 1, label = 'IN', isSelected = false) {
 // ✅ Terminals coordinates helper
 export function getINTerminals(centerX, centerY) {
   return [
-    { x: centerX - 60, y: centerY }
+    { x: centerX + 60, y: centerY }
   ];
 }

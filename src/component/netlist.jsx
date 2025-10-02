@@ -161,6 +161,22 @@ function buildNetlistString(engine, rawCellName) {
   const uniq = (arr) => [...new Set(arr.filter(Boolean))];
   const IN  = uniq(inPins);
   const OUT = uniq(outPins);
+  // --- Collect supply pins to expose as top-level pins (VDDI first, then VSSI)
+  const vddiPins = [];
+  const vssiPins = [];
+
+  for (const c of engine.components) {
+    const t = (c.type || '').toLowerCase();
+    if (t === 'vddi') {
+      const n = NN(c.terminals?.[0]?.netLabel); if (n) vddiPins.push(n);
+    } else if (t === 'vssi') {
+      const n = NN(c.terminals?.[0]?.netLabel); if (n) vssiPins.push(n);
+    }
+  }
+  const VDDI = uniq(vddiPins);
+  const VSSI = uniq(vssiPins);
+
+
 
   lines.push('', '');
     // If gate block didn't run, still emit MOS models before top .SUBCKT
@@ -172,7 +188,8 @@ function buildNetlistString(engine, rawCellName) {
     if (needNMOS_LVT || needNMOS_HVT || needPMOS_LVT || needPMOS_HVT) lines.push('');
   }
   lines.push('', '');
-  lines.push(`.SUBCKT ${CELL} ${[...IN, ...OUT].join(' ')}`);
+   lines.push(`.SUBCKT ${CELL} ${[...IN, ...OUT, ...VDDI, ...VSSI].join(' ')}`);
+
 
   // ---- helpers used inside switch ----
   const vdcToSpice = (c, n1, n2) => {
@@ -298,7 +315,7 @@ function buildNetlistString(engine, rawCellName) {
 
       case "vssi":
       case "vddi":
-        lines.push(`${name} ${n1} ${n2}`);
+       
         break;
 
       case "not": {
