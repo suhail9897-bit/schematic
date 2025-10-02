@@ -1152,7 +1152,7 @@ if (this.multiSelected && this.multiSelected.length) {
   this.selectedTerminals = [];
 
   // 4) recompute nets for remaining circuit
-  this.recomputeNets();
+  // this.recomputeNets();
 
   // 5) redraw
   this.draw();
