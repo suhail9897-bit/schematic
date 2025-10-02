@@ -13,18 +13,23 @@ function measureBox(comp, grid) {
   const minBodyW = 8 * g;                        // minimum body width
 
   const bodyH = Math.max(minBodyH, (nIn + 2) * pinStep);
-  const bodyW = Math.max(minBodyW, (Math.max(nTop, nBot) + 6) * g);
+  // NEW: keep constant center-to-center spacing = 2*g for top/bottom stubs
+const stubStep = 2 * g;                                // ← uniform horizontal step
+const maxStubs = Math.max(nTop, nBot);
+const neededSpan = maxStubs > 1 ? (maxStubs - 1) * stubStep : 0; // first→last center span
+const innerPad = 4 * g;                                // left+right inner margin
+const bodyW = Math.max(minBodyW, neededSpan + innerPad);
 
   const halfW = Math.round(bodyW / 2 / g) * g;
   const halfH = Math.round(bodyH / 2 / g) * g;
 
-  return { g, nIn, nTop, nBot, bodyW, bodyH, halfW, halfH, pinStep };
+  return { g, nIn, nTop, nBot, bodyW, bodyH, halfW, halfH, pinStep,  stubStep };
 }
 
 
 
 export function getSubcktBoxTerminals(comp, grid) {
-  const { g, nIn, nTop, nBot, halfW, halfH, bodyW, pinStep } = measureBox(comp, grid);
+  const { g, nIn, nTop, nBot, halfW, halfH, bodyW, pinStep,  stubStep } = measureBox(comp, grid);
 
   const terms = [];
 
@@ -39,27 +44,28 @@ export function getSubcktBoxTerminals(comp, grid) {
   terms.push({ x:  halfW + g, y: 0, netLabel: "" , terminalSpace: 'local' });
 
   // TOP powers (spread across width)
-  const spreadTop = nTop + 1;
-  for (let i = 0; i < nTop; i++) {
-    const x = -halfW + ((i + 1) * bodyW) / spreadTop;
-    const snapX = Math.round(x / g) * g;
-    terms.push({ x: snapX, y: -halfH - g, netLabel: "" , terminalSpace: 'local' });
-  }
+// NEW (uniform 2*g spacing, centered)
+const startTop = -((nTop - 1) * stubStep) / 2;
+for (let i = 0; i < nTop; i++) {
+  const x = startTop + i * stubStep;
+  const snapX = Math.round(x / g) * g;
+  terms.push({ x: snapX, y: -halfH - g, netLabel: "", terminalSpace: "local" });
+}
 
   // BOTTOM grounds
-  const spreadBot = nBot + 1;
-  for (let i = 0; i < nBot; i++) {
-    const x = -halfW + ((i + 1) * bodyW) / spreadBot;
-    const snapX = Math.round(x / g) * g;
-    terms.push({ x: snapX, y:  halfH + g, netLabel: "" , terminalSpace: 'local' });
-  }
+ const startBot = -((nBot - 1) * stubStep) / 2;
+for (let i = 0; i < nBot; i++) {
+  const x = startBot + i * stubStep;
+  const snapX = Math.round(x / g) * g;
+  terms.push({ x: snapX, y: halfH + g, netLabel: "", terminalSpace: "local" });
+}
 
   return terms;
 }
 
 // ----- drawing -----
 export function drawSubcktBox(ctx, cx, cy, scale, comp, isSelected, grid) {
-  const { g, nIn, nTop, nBot, bodyW, bodyH, halfW, halfH, pinStep } =
+  const { g, nIn, nTop, nBot, bodyW, bodyH, halfW, halfH, pinStep, stubStep } =
     measureBox(comp, grid);
 
   const name    = String(comp?.subckt?.name || comp?.label || 'BLOCK');
@@ -110,32 +116,34 @@ export function drawSubcktBox(ctx, cx, cy, scale, comp, isSelected, grid) {
 
   // TOP power names (stubs upward)
   ctx.textAlign = 'center';
-  for (let i = 0; i < powers.length; i++) {
-    const x = -halfW + ((i + 1) * bodyW) / (nTop + 1);
-    const xs = Math.round(x / g) * g;
+  const startTop = -((nTop - 1) * stubStep) / 2;
+for (let i = 0; i < powers.length; i++) {
+  const x = startTop + i * stubStep;
+  const xs = Math.round(x / g) * g;
 
-    ctx.beginPath();
-    ctx.moveTo(xs, -halfH - g);
-    ctx.lineTo(xs, -halfH);
-    ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(xs, -halfH - g);
+  ctx.lineTo(xs, -halfH);
+  ctx.stroke();
 
-    ctx.fillStyle = '#fff';
-    ctx.fillText(String(powers[i]), xs, -halfH + 15);
-  }
+  ctx.fillStyle = '#fff';
+  ctx.fillText(String(powers[i]), xs, -halfH + 15);
+}
 
   // BOTTOM grounds (stubs downward)
-  for (let i = 0; i < grounds.length; i++) {
-    const x = -halfW + ((i + 1) * bodyW) / (nBot + 1);
-    const xs = Math.round(x / g) * g;
+ const startBot = -((nBot - 1) * stubStep) / 2;
+for (let i = 0; i < grounds.length; i++) {
+  const x = startBot + i * stubStep;
+  const xs = Math.round(x / g) * g;
 
-    ctx.beginPath();
-    ctx.moveTo(xs, halfH);
-    ctx.lineTo(xs, halfH + g);
-    ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(xs, halfH);
+  ctx.lineTo(xs, halfH + g);
+  ctx.stroke();
 
-    ctx.fillStyle = '#fff';
-    ctx.fillText(String(grounds[i]), xs, halfH + 0 );
-  }
+  ctx.fillStyle = '#fff';
+  ctx.fillText(String(grounds[i]), xs, halfH + 0);
+}
 
   // CENTER TITLE
   ctx.textAlign = 'center';
