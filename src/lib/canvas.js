@@ -142,6 +142,15 @@ class CanvasUtils {
     this.canvas.addEventListener("mousedown", this.handleMouseDown.bind(this));
     this.canvas.addEventListener("mousemove", this.handleMouseMove.bind(this));
     this.canvas.addEventListener("mouseup", this.handleMouseUp.bind(this));
+
+    // ---- Right-drag pan state (NEW) ----
+    this.panning = false;
+    this._panStart = null;                     // { sx, sy }
+    this._panStartOffset = { x: this.offsetX, y: this.offsetY };
+
+    // Disable default context menu so right-drag feels native
+    this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
   }
 
   // Add a subcircuit box component at origin (grid-snap), with safety checks

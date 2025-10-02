@@ -488,6 +488,15 @@ if (this.marquee && (this.marquee.active || this.marquee.persist)) {
 // Install only handleMouseDown on the prototype (mixin style)
 export function installHandleMouseDown(proto) {
   proto.handleMouseDown = async function handleMouseDown(e) {
+    // Right-button starts panning (NEW)
+if (e.button === 2) { // right mouse
+  this.panning = true;
+  this._panStart = { sx: e.offsetX, sy: e.offsetY };
+  this._panStartOffset = { x: this.offsetX, y: this.offsetY };
+  if (this.canvas) this.canvas.style.cursor = 'grabbing';
+  return; // swallow further processing while panning
+}
+
     const { x, y } = this.toWorldCoords(e.offsetX, e.offsetY);
     // console.log(this.components);
 // 🔁 Only on DOUBLE click: wire par scissor dikhao
@@ -654,6 +663,17 @@ export function installMouseMoveUpZoom(proto) {
   };
 
   proto.handleMouseMove = function handleMouseMove(e) {
+    // Right-drag panning (NEW)
+if (this.panning) {
+  const dx = e.offsetX - (this._panStart?.sx ?? e.offsetX);
+  const dy = e.offsetY - (this._panStart?.sy ?? e.offsetY);
+  this.offsetX = (this._panStartOffset?.x ?? this.offsetX) + dx;
+  this.offsetY = (this._panStartOffset?.y ?? this.offsetY) + dy;
+  this.draw();
+  if (this.uiHooks?.onViewport) this.uiHooks.onViewport(this.getViewport());
+  return; // consume move while panning
+}
+
     // 📦 Marquee live update
 if (this.marquee && this.marquee.active) {
   const { x, y } = this.toWorldCoords(e.offsetX, e.offsetY);
@@ -687,6 +707,15 @@ if (this.marquee && this.marquee.active) {
   };
 
   proto.handleMouseUp = function handleMouseUp() {
+
+    // Stop panning if it was active (NEW)
+if (this.panning) {
+  this.panning = false;
+  this._panStart = null;
+  if (this.canvas) this.canvas.style.cursor = 'default';
+  // don't return; allow rest of mouseup logic (marquee finalize etc.)
+}
+
     // 📦 Finalize marquee selection (keep box until delete)
 if (this.marquee && this.marquee.active) {
   this.marquee.active  = false;
