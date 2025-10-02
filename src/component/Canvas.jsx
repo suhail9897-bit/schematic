@@ -9,6 +9,14 @@ const Canvas = React.forwardRef((props, ref) => {
   const canvasRef = useRef(null);
   const engineRef = useRef(null);
   const roRef = useRef(null);
+
+  // 🟢 Session-scoped store for uploaded .SUBCKT blocks (clears on refresh)
+const subcktStoreRef = useRef({
+  entries: [],               // [{ boxId, boxLabel, fileName, subcktName, subcktLines, fullCirLines }]
+  byBoxId: new Map(),        // boxId -> entry
+  bySubcktName: new Map()    // SUBCKT name -> [entries]
+});
+
   // 🔵 smart-draw state (React-side)
   const [placing, setPlacing] = useState(null); // { type, rot } | null
   const [ghost, setGhost] = useState(null);     // { x,y } WORLD (snapped)
@@ -103,15 +111,40 @@ const Canvas = React.forwardRef((props, ref) => {
 
           // Create subckt box from uploaded design JSON
       createBoxFromDesign: (json, filename = "DESIGN") => {
-        try {
-          const spec = extractBoxSpecFromDesign(json, filename);
-          return engineRef.current?.addSubcktBox?.(spec);
-        } catch (e) {
-          console.error(e);
-          alert("Could not create box from this file.");
-          return null;
-        }
-      },
+  try {
+    const spec = extractBoxSpecFromDesign(json, filename);
+    const comp = engineRef.current?.addSubcktBox?.(spec);
+    // --- NEW: capture last SUBCKT and map to this box ---
+    if (comp && spec?.lastSubckt?.blockLines?.length) {
+      const entry = {
+        boxId: comp.id,
+        boxLabel: comp.label,
+        fileName: filename,
+        subcktName: spec.lastSubckt.name || spec.name,
+        subcktLines: spec.lastSubckt.blockLines.slice(), // array of lines
+        fullCirLines: spec.cirLines || []
+      };
+      subcktStoreRef.current.entries.push(entry);
+      subcktStoreRef.current.byBoxId.set(comp.id, entry);
+      const arr = subcktStoreRef.current.bySubcktName.get(entry.subcktName) || [];
+      arr.push(entry);
+      subcktStoreRef.current.bySubcktName.set(entry.subcktName, arr);
+    }
+    return comp;
+  } catch (e) {
+    console.error(e);
+    alert("Could not create box from this file.");
+    return null;
+  }
+},
+ // 🔎 accessors for the session .SUBCKT store
+      getSubcktLibrary: () => ({
+        entries: [...subcktStoreRef.current.entries],
+        size: subcktStoreRef.current.entries.length
+      }),
+      getSubcktForBox: (boxId) =>
+        subcktStoreRef.current.byBoxId.get(boxId) || null,
+
        getNetlistString: (cellName = "CIRCUIT") =>
        buildNetlistString(engineRef.current, cellName),
       // component add

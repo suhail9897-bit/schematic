@@ -170,6 +170,15 @@ addSubcktBox(spec = {}) {
       output: spec.output || 'OUT',
       powers: Array.isArray(spec.powers) ? spec.powers : [],
       grounds: Array.isArray(spec.grounds) ? spec.grounds : [],
+       // ⬇️ netlist emit ke liye: sirf last .SUBCKT block ko carry karo
+        cirLines:
+          (spec?.lastSubckt?.blockLines?.length
+            ? spec.lastSubckt.blockLines.slice()
+            : (Array.isArray(spec.cirLines) ? spec.cirLines.slice() : [])),
+        // (optional) reference ke liye alag field bhi rakh lo
+        lastSubcktLines: (Array.isArray(spec?.lastSubckt?.blockLines)
+            ? spec.lastSubckt.blockLines.slice() : []),
+        lastSubcktName: String(spec?.lastSubckt?.name || spec?.name || '').toUpperCase()
     },
     terminals: []
   };

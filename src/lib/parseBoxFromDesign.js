@@ -24,6 +24,9 @@ export function extractBoxSpecFromDesign(design = {}, filename = "DESIGN") {
 
   //    lekin ab subckt pin order ke base par actual net-names pick karenge
   const all = Array.isArray(design.__NETLIST_CIR_LINES) ? design.__NETLIST_CIR_LINES : [];
+  const cirLines = all.map(String);           // NEW
+  const lastSubckt = pickLastSubckt(cirLines); // NEW
+
 
   // aliases jin pin-names ko "supply" maana jaa sakta hai (SUBCKT header me)
   const POWER_ALIAS = /^(VDD|VCC|VPP|VDDA|VDDD|AVDD|DVDD)$/i;
@@ -88,6 +91,8 @@ export function extractBoxSpecFromDesign(design = {}, filename = "DESIGN") {
     }
   }
 
+  
+
   // --- add just above the return ---
 const uniqOrder = (arr) => {
   const seen = new Set();
@@ -106,8 +111,38 @@ return {
   output,
   powers: uniqOrder(powers),
   grounds: uniqOrder(grounds),
+  cirLines,         // NEW: full library as-is (stringified)
+  lastSubckt        // NEW: { name, blockLines, blockText }
     // carry full library text for emission in netlist
-  cirLines: Array.isArray(design.__NETLIST_CIR_LINES) ? design.__NETLIST_CIR_LINES.map(String) : []
+  //  cirLines: Array.isArray(design.__NETLIST_CIR_LINES) ? design.__NETLIST_CIR_LINES.map(String) : []
 };
 
 }
+
+// ---- helper: pick the last ".SUBCKT ... .ENDS" block from __NETLIST_CIR_LINES
+export function pickLastSubckt(lines = []) {
+  if (!Array.isArray(lines)) {
+    return { name: "", blockLines: [], blockText: "" };
+  }
+
+  // last .SUBCKT ka start (peeche se)
+  let start = -1, end = -1, subName = "";
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const L = String(lines[i] || "").trim().toUpperCase();
+    if (L.startsWith(".ENDS")) { end = i; break; }
+  }
+  if (end >= 0) {
+    for (let j = end - 1; j >= 0; j--) {
+      const m = String(lines[j] || "").match(/^\s*\.SUBCKT\s+(\S+)/i);
+      if (m) { start = j; subName = m[1].toUpperCase(); break; }
+    }
+  }
+
+  const blockLines = (start >= 0 && end > start) ? lines.slice(start, end + 1) : [];
+  return {
+    name: subName,
+    blockLines,
+    blockText: blockLines.join("\n")
+  };
+}
+

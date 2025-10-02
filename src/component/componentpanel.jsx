@@ -102,16 +102,38 @@ const ComponentPanel = ({
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const json = JSON.parse(String(reader.result || '{}'));
-        canvasRef.current?.createBoxFromDesign?.(json, file.name);
-      } catch (err) {
-        alert('Invalid design JSON for box.');
-      } finally {
-        e.target.value = '';
-      }
-    };
+   reader.onload = () => {
+  try {
+    const json = JSON.parse(String(reader.result || '{}'));
+
+    // already in your upload handler:
+    const comp = canvasRef.current?.createBoxFromDesign?.(json, file.name);
+
+    // NEW: get the subckt captured for THIS box
+    if (comp && canvasRef.current?.getSubcktForBox) {
+      const entry = canvasRef.current.getSubcktForBox(comp.id);
+      // entry shape:
+      // { boxId, boxLabel, fileName, subcktName, subcktLines, fullCirLines }
+      console.log("BOX SUBCKT:", entry?.subcktName);
+      // e.g. to see the block as text:
+      console.log(entry?.subcktLines?.join("\n"));
+    }
+
+    // (Snippet-2 goes here; see below)
+     // NEW: read the whole session collection (optional)
+  if (canvasRef.current?.getSubcktLibrary) {
+    const lib = canvasRef.current.getSubcktLibrary();
+    console.log("Total stored blocks:", lib.size);
+    console.table(lib.entries);
+  }
+
+  } catch (err) {
+    alert('Invalid design JSON for box.');
+  } finally {
+    e.target.value = '';
+  }
+};
+
     reader.readAsText(file);
   };
   
@@ -141,14 +163,6 @@ useEffect(() => {
   const on = !!canvasRef.current?.getMarqueeEnabled?.();
   setMultiSelOn(on);
 }, [canvasRef]);
-
-// small inline icon (dashed rectangle)
-const MarqueeIcon = ({ size = 16 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <rect x="4" y="6" width="16" height="16" stroke="currentColor" strokeDasharray="3 2" strokeWidth="2" rx="2" ry="2"/>
-  </svg>
-);
-
 
    return (
     <div className="h-[50px] bg-[#1e1e1e] text-white flex items-center justify-between px-5 border-b border-[#333] flex-shrink-0 gap-2 relative z-50">

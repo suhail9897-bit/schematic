@@ -121,6 +121,7 @@ function buildNetlistString(engine, rawCellName) {
       lines.push('XX2 OUT T  C  VDD VSS XOR2  WP=WP WN=WN L=L M=M');
       lines.push('.ENDS');
     }
+    
     lines.push('');
   }
 
@@ -130,7 +131,9 @@ function buildNetlistString(engine, rawCellName) {
   for (const c of engine.components) {
     const sc = c && c.subckt;
     if (!sc) continue;
-    const lib = Array.isArray(sc.cirLines) ? sc.cirLines : null;
+     const block = (Array.isArray(sc.lastSubcktLines) && sc.lastSubcktLines.length)
+      ? sc.lastSubcktLines : null;
+    const lib = block || (Array.isArray(sc.cirLines) ? sc.cirLines : null);
     const key = (sc.name || '').toUpperCase();
     if (lib && lib.length && key && !seenLibs.has(key)) {
       // keep exactly as provided (user wanted 1:1 spacing)
@@ -375,26 +378,35 @@ function buildNetlistString(engine, rawCellName) {
       case "subckt":
       case "subcktbox":
       case "subckt-box":
-      case "box": {
-        // Uploaded design "box"
-        const sc = comp.subckt || {};
-        const OUT  = NN(sc.output || comp.terminals?.[1]?.netLabel || 'OUT');
-        const INPS = Array.isArray(sc.inputs)  ? sc.inputs.map(NN)  : [];
-        const POW  = Array.isArray(sc.powers)  ? sc.powers.map(NN)  : [];
-        const GND  = Array.isArray(sc.grounds) ? sc.grounds.map(NN) : [];
+     case "box": {
+  const sc = comp.subckt || {};
+  const tt = comp.terminals || [];
 
-        // Instance name: X + label (or subckt name)
-        const rawLabel = (comp.label?.split(' ')[0] || sc.name || 'BOX');
-        const inst = rawLabel.startsWith('X') ? rawLabel : ('X' + rawLabel);
+  // Terminals order (see subcktbox.js):
+  // [inputs ...] [output] [powers ...] [grounds ...]
+  const nIn   = (sc.inputs  || []).length;
+  const nTop  = (sc.powers  || []).length;
+  const nBot  = (sc.grounds || []).length;
 
-        // Final pin order: OUT, then inputs, then powers, then grounds
-        const pins = [OUT, ...INPS, ...POW, ...GND].filter(Boolean);
+  const tLabel = i => NN(tt[i]?.netLabel);
 
-        // Subckt ref = uploaded design name (uppercased)
-        const ref = NN(sc.name || 'BOX');
-        lines.push(`${inst} ${pins.join(' ')} ${ref}`);
-        break;
-      }
+  // indices
+  const outIdx   = nIn;                 // single output just after inputs
+  const topStart = nIn + 1;
+  const botStart = nIn + 1 + nTop;
+
+  // collect external nets in SPICE order: OUT, IN..., PWR..., GND...
+  const OUT    = tLabel(outIdx) || "NET_OUT";
+  const INs    = Array.from({length: nIn }, (_,i) => tLabel(i)             || `NET_IN${i+1}`);
+  const PWRs   = Array.from({length: nTop}, (_,i) => tLabel(topStart + i)  || `VDD${i+1}`);
+  const GNDs   = Array.from({length: nBot}, (_,i) => tLabel(botStart + i)  || `VSS${i+1}`);
+
+  const pins = [OUT, ...INs, ...PWRs, ...GNDs];
+
+  lines.push(`X${name} ${pins.join(' ')} ${sc.name || 'DESIGN1'}`);
+  break;
+}
+
 
 
       default:
