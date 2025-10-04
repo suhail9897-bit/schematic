@@ -14,6 +14,7 @@ import EditNOR from "../editcomponents/editnor";
 import EditXOR from "../editcomponents/editxor";
 import EditNOT from "../editcomponents/editnot";
 import EditVDC from "../editcomponents/editvdc";
+import EditSubcktBox from "../editcomponents/editsubcktbox";
 
 const Toggle = ({ canvasRef }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -138,7 +139,7 @@ function xorTermTitle(selected, idx) {
       </Tooltip>
       {/* Dropdown */}
 {isOpen && (
-  <div className="fixed right-0 mt-[11px] w-80 z-50">
+  <div className="fixed right-0 mt-[11px] w-48 z-50">
     <div
       className="
         relative overflow-hidden rounded-2xl
@@ -146,6 +147,7 @@ function xorTermTitle(selected, idx) {
         backdrop-blur-md
         border border-white/10 ring-1 ring-white/5
         shadow-[0_10px_40px_rgba(0,0,0,0.6)]
+       
       "
     >
       {/* glossy glance layer */}
@@ -212,6 +214,10 @@ function xorTermTitle(selected, idx) {
                  )}
                 {/* Other components can be added here later */}
              {/* ===== CAPACITOR ===== */}
+
+   {selected?.type === "subcktbox" && (
+   <EditSubcktBox engine={canvasRef?.current} selected={selected} />
+ )}
  {selected.type === "capacitor" && (
    <EditCapacitor
      selected={selected}
@@ -308,9 +314,9 @@ const title =
 
   return (
     <div key={t.index} className="flex items-center gap-2">
-      <div className="w-20 text-gray-400 text-xs">{title}</div>
+      <div className="w-15 text-gray-400 text-xs">{title}</div>
       <input
-        className="flex-1 bg-[#111] border border-gray-600 rounded px-2 py-1 outline-none focus:border-gray-400"
+        className="flex-1 min-w-0 bg-[#111] border border-gray-600 rounded px-2 py-1 outline-none focus:border-gray-400"
         value={t.netLabel || ""}
         onChange={(e) => onNetChange(t.index, e.target.value)}
       />
@@ -321,9 +327,9 @@ const title =
                   {/* NMOS BODY/BULK net name (netlist-only field) */}
         {selected?.type === 'nmos' && (
           <div className="flex items-center gap-2">
-            <div className="w-20 text-gray-400 text-xs">BODY</div>
+            <div className="w-10 text-gray-400 text-xs">BODY</div>
             <input
-            className="flex-1 bg-[#111] border border-gray-600 rounded px-2 py-1 outline-none focus:border-gray-400"
+            className="flex-1 min-w-0 bg-[#111] border border-gray-600 rounded px-2 py-1 outline-none focus:border-gray-400"
             value={bodyNet}
             onChange={(e) => {
               const v = e.target.value;
@@ -335,9 +341,9 @@ const title =
         )}
        {selected?.type === 'pmos' && (
    <div className="flex items-center gap-2">
-     <div className="w-20 text-gray-400 text-xs">BODY</div>
+     <div className="w-10 text-gray-400 text-xs">BODY</div>
      <input
-       className="flex-1 bg-[#111] border border-gray-600 rounded px-2 py-1 outline-none focus:border-gray-400"
+       className="flex-1 min-w-0 bg-[#111] border border-gray-600 rounded px-2 py-1 outline-none focus:border-gray-400"
        value={pBodyNet}
        onChange={(e) => {
          const v = e.target.value;
@@ -350,9 +356,9 @@ const title =
  {selected?.type === 'nand' && (
   <>
     <div className="flex items-center gap-2">
-      <div className="w-20 text-gray-400 text-xs">Power</div>
+      <div className="w-10 text-gray-400 text-xs">Power</div>
       <input
-        className="flex-1 bg-[#111] border border-gray-600 rounded px-2 py-1 outline-none focus:border-gray-400"
+        className="flex-1  min-w-0 bg-[#111] border border-gray-600 rounded px-2 py-1 outline-none focus:border-gray-400"
         value={selected?.nand?.vddNet ?? ""}
         placeholder="VDD"
         onChange={(e) =>
@@ -361,9 +367,9 @@ const title =
       />
     </div>
     <div className="flex items-center gap-2">
-      <div className="w-20 text-gray-400 text-xs">Ground</div>
+      <div className="w-10 text-gray-400 text-xs">Ground</div>
       <input
-        className="flex-1 bg-[#111] border border-gray-600 rounded px-2 py-1 outline-none focus:border-gray-400"
+        className="flex-1 min-w-0 bg-[#111] border border-gray-600 rounded px-2 py-1 outline-none focus:border-gray-400"
         value={selected?.nand?.vssNet ?? ""}
         placeholder="VSS"
         onChange={(e) =>
@@ -376,18 +382,18 @@ const title =
 {selected?.type === 'nor' && (
   <>
     <div className="flex items-center gap-2">
-      <div className="w-20 text-gray-400 text-xs">Power</div>
+      <div className="w-10 text-gray-400 text-xs">Power</div>
       <input
-        className="flex-1 bg-[#111] border border-gray-600 rounded px-2 py-1 outline-none focus:border-gray-400"
+        className="flex-1 min-w-0 bg-[#111] border border-gray-600 rounded px-2 py-1 outline-none focus:border-gray-400"
         value={selected?.nor?.vddNet ?? ""}        // <-- was "?? 'VDD'"
         placeholder="VDD"
         onChange={(e) => canvasRef?.current?.setNorFromUI?.({ vddNet: e.target.value })}
       />
     </div>
     <div className="flex items-center gap-2">
-      <div className="w-20 text-gray-400 text-xs">Ground</div>
+      <div className="w-10 text-gray-400 text-xs">Ground</div>
       <input
-        className="flex-1 bg-[#111] border border-gray-600 rounded px-2 py-1 outline-none focus:border-gray-400"
+        className="flex-1 min-w-0 bg-[#111] border border-gray-600 rounded px-2 py-1 outline-none focus:border-gray-400"
         value={selected?.nor?.vssNet ?? ""}        // <-- was "?? 'VSS'"
         placeholder="VSS"
         onChange={(e) => canvasRef?.current?.setNorFromUI?.({ vssNet: e.target.value })}
@@ -399,9 +405,9 @@ const title =
 {selected?.type === 'xor' && (
   <>
     <div className="flex items-center gap-2">
-      <div className="w-20 text-gray-400 text-xs">Power</div>
+      <div className="w-10 text-gray-400 text-xs">Power</div>
       <input
-        className="flex-1 bg-[#111] border border-gray-600 rounded px-2 py-1 outline-none focus:border-gray-400"
+        className="flex-1 min-w-0 bg-[#111] border border-gray-600 rounded px-2 py-1 outline-none focus:border-gray-400"
         value={selected?.xor?.vddNet ?? ""}         // blank allow
         placeholder="VDD"
         onChange={(e) =>
@@ -410,9 +416,9 @@ const title =
       />
     </div>
     <div className="flex items-center gap-2">
-      <div className="w-20 text-gray-400 text-xs">Ground</div>
+      <div className="w-10 text-gray-400 text-xs">Ground</div>
       <input
-        className="flex-1 bg-[#111] border border-gray-600 rounded px-2 py-1 outline-none focus:border-gray-400"
+        className="flex-1 min-w-0 bg-[#111] border border-gray-600 rounded px-2 py-1 outline-none focus:border-gray-400"
         value={selected?.xor?.vssNet ?? ""}         // blank allow
         placeholder="VSS"
         onChange={(e) =>

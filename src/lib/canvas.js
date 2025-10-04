@@ -1054,8 +1054,22 @@ updateSelected(patch = {}) {
     }
   }
 
+  // canvas.js  — updateSelected(patch) ke andar, this.draw() se pehle:
+if (patch.subckt && typeof patch.subckt.name !== "undefined") {
+  const c = this.selected;
+  if (c && c.type === "subcktbox") {
+    c.subckt = c.subckt || {};
+    c.subckt.name = String(patch.subckt.name);
+    // optional: label ko sync rakhna (drawSubcktBox dono me se kisi ek ko padhta hai)
+    c.label = c.subckt.name;
+  }
+}
+
+
   this.draw();
 }
+
+
 
   // Grid ko screen par kitna chhota/ghana dikhna allow hai
 MIN_GRID_PX = 18;   // zoom-out par grid gap isse chhota na ho
@@ -1239,17 +1253,19 @@ getSelectionInfo() {
 }
 
 // ---- Make auto net names unique only for just-pasted components ----
+// ---- Make pasted nets unique (auto + custom both) ----
+// - Auto nets:   net<digits>[letters]  => root is "net<digits>"  (net1, net1a, net23ab)
+// - Custom nets: anything else         => root is label minus trailing letters (e.g. "input1a" -> "input1")
+//                                             if no trailing digits exist (e.g. "VDD") root stays same ("VDD")
 uniquifyPastedNets(newComps = []) {
   if (!Array.isArray(newComps) || !newComps.length) return;
 
-  // auto nets: net<digits> or net<digits><letters>  e.g. net1, net1a, net23ab
   const AUTO_RX = /^net(\d+)([a-z]*)$/i;
-  const isAuto = (s) => typeof s === 'string' && AUTO_RX.test(s);
 
   // ids of newly pasted comps
   const newIds = new Set(newComps.map(c => c.id));
 
-  // collect all net labels already used by existing (non-pasted) components
+  // collect all labels already used by existing (non-pasted) components
   const used = new Set();
   for (const c of this.components) {
     if (newIds.has(c.id)) continue;
@@ -1258,12 +1274,12 @@ uniquifyPastedNets(newComps = []) {
     });
   }
 
-  // group new terminals by OLD label (only auto nets)
+  // group new terminals by their OLD label (auto + custom both)
   const byLabel = new Map(); // oldLabel -> [{compId, idx}]
   for (const c of newComps) {
     (c.terminals || []).forEach((t, idx) => {
       const lab = t?.netLabel;
-      if (!lab || !isAuto(lab)) return; // custom names untouched
+      if (!lab) return;
       if (!byLabel.has(lab)) byLabel.set(lab, []);
       byLabel.get(lab).push({ compId: c.id, idx });
     });
@@ -1273,7 +1289,7 @@ uniquifyPastedNets(newComps = []) {
   const alpha = 'abcdefghijklmnopqrstuvwxyz';
   const bumpFrom = (root) => {
     let k = 0;
-    while (true) {
+    for (;;) {
       let suf = '';
       let n = k;
       do {
@@ -1286,12 +1302,26 @@ uniquifyPastedNets(newComps = []) {
     }
   };
 
-  // for each old auto-label, if it clashes with existing -> bump only the pasted ones
+  // for each old label, if it clashes with existing -> bump only the pasted ones
   for (const [oldLab, nodes] of byLabel.entries()) {
-    if (!used.has(oldLab)) { used.add(oldLab); continue; }
+    if (!used.has(oldLab)) { 
+      // old label is globally unique; reserve it so next paste can bump properly
+      used.add(oldLab); 
+      continue; 
+    }
 
-    const m = AUTO_RX.exec(oldLab);      // catches net1, net1a, net1zz...
-    const root = m ? `net${m[1]}` : oldLab;  // root = "net1"; suffix बाद में bump होगा
+    // decide root
+    let root;
+    const m = AUTO_RX.exec(oldLab);
+    if (m) {
+      // auto net => root "net<digits>"
+      root = `net${m[1]}`;
+    } else {
+      // custom => strip trailing letters to preserve numeric part (e.g., input1a -> input1)
+      const stripped = oldLab.replace(/[a-z]+$/i, '');
+      root = stripped || oldLab;  // if pure text like "VDD", keep as-is (-> "VDDA", "VDDB", …)
+    }
+
     const newLab = bumpFrom(root);
     used.add(newLab);
 
@@ -1305,6 +1335,7 @@ uniquifyPastedNets(newComps = []) {
     }
   }
 }
+
 
 
 // Paste clipboard near (tx, ty) world position; returns new ids
@@ -1528,6 +1559,8 @@ for (const b of bundle) {
 this.netCounter = nextAuto;
 
 }
+
+
 
 
 clearAll() {
