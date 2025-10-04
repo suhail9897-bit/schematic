@@ -134,6 +134,10 @@ class CanvasUtils {
     this.multiSelected = [];         // array of selected components
     this.marquee = null;             // { x1,y1,x2,y2, active:boolean, persist:boolean } | null
     this.marqueeEnabled = false;   // ← marquee (box select) OFF by default
+    // --- clipboard state for copy/paste ---
+    this.clipboard = null;     // { comps:[], wires:[], anchor:{x,y}, w,h }
+    this._pasteBump = 20;      // repeated paste ke liye nudge
+    this._pasteCount = 0;      // incremental bump
 
 
    // ✅ device pixel ratio
@@ -1167,11 +1171,138 @@ if (this.multiSelected && this.multiSelected.length) {
   this.draw();
 }
 
+// Copy current selection (components + fully-internal wires) into engine clipboard
+copySelection() {
+  const { ids, bbox } = this.getSelectionInfo();
+  if (!ids.length) return false;
+
+  const idSet = new Set(ids);
+  const comps = this.components.filter(c => idSet.has(c.id));
+
+  // Take only those wires whose both ends are inside selection
+  const wires = this.wires.filter(w =>
+    idSet.has(w?.from?.compId) && idSet.has(w?.to?.compId)
+  );
+
+  // Snapshot components (shallow clone is fine; we'll rebuild new ids on paste)
+  const compsSnap = comps.map(c => ({ ...c }));
+
+  this.clipboard = {
+    comps: compsSnap,
+    wires: wires.map(w => ({
+      ...w,
+      from: { ...w.from },
+      to:   { ...w.to }
+    })),
+    anchor: { x: bbox?.minX ?? 0, y: bbox?.minY ?? 0 },
+    w: (bbox?.maxX ?? 0) - (bbox?.minX ?? 0),
+    h: (bbox?.maxY ?? 0) - (bbox?.minY ?? 0)
+  };
+  this._pasteCount = 0; // reset bump
+  return true;
+}
+
+
+// Collect IDs of current selection (multiSelected > selected) and a rough bbox
+getSelectionInfo() {
+  let ids = [];
+  if (this.multiSelected && this.multiSelected.length) {
+    ids = this.multiSelected.map(c => c.id);
+  } else if (this.selected) {
+    ids = [this.selected.id];
+  }
+  if (!ids.length) return { ids: [], bbox: null };
+
+  const comps = this.components.filter(c => ids.includes(c.id));
+  // rough bbox from component origins; works well enough for anchor
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const c of comps) {
+    minX = Math.max(Math.min(minX, c.x || 0), -1e9);
+    minY = Math.max(Math.min(minY, c.y || 0), -1e9);
+    maxX = Math.min(Math.max(maxX, c.x || 0),  1e9);
+    maxY = Math.min(Math.max(maxY, c.y || 0),  1e9);
+  }
+  return { ids, bbox: { minX, minY, maxX, maxY } };
+}
+
+// Paste clipboard near (tx, ty) world position; returns new ids
+pasteClipboardAt(tx, ty) {
+  if (!this.clipboard) return [];
+
+  // Prepare id map (old -> new)
+  const idMap = new Map();
+  const newComps = [];
+  const bump = this._pasteBump * (this._pasteCount++); // slight offset for repeated Ctrl+V
+
+  const dx = (tx || 0) - this.clipboard.anchor.x + bump;
+  const dy = (ty || 0) - this.clipboard.anchor.y + bump;
+  
+
+  // Helper to make a fresh unique id
+  const newId = () => `cp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+
+   // ⛔ preflight: block paste if any pasted component would overlap existing ones
+  // (same 120px half-box convention as drag/overlap)
+  for (const snap of this.clipboard.comps) {
+    const nx = Math.round((snap.x + dx) / this.gridSize) * this.gridSize;
+    const ny = Math.round((snap.y + dy) / this.gridSize) * this.gridSize;
+    if (this._overlapsAnyComponent(nx, ny /*, 120 */)) {
+      alert("Paste blocked: overlaps existing components. Paste somewhere else.");
+      return [];
+    }
+  }
+
+
+  // 1) spawn components
+  for (const snap of this.clipboard.comps) {
+    const c = { ...snap };
+    const oldId = c.id;
+    c.id = newId();
+
+    // shift position
+    c.x = Math.round((c.x + dx) / this.gridSize) * this.gridSize;
+    c.y = Math.round((c.y + dy) / this.gridSize) * this.gridSize;
+
+    // clear any transient selection state
+    c.isSelected = false;
+
+    this.components.push(c);
+    newComps.push(c);
+    idMap.set(oldId, c.id);
+  }
+
+  // 2) rebuild wires for the new components
+  for (const w of this.clipboard.wires) {
+    const nfrom = idMap.get(w.from.compId);
+    const nto   = idMap.get(w.to.compId);
+    if (!nfrom || !nto) continue; // should not happen, but safe-guard
+
+    const nw = {
+      id: newId(),
+      from: { compId: nfrom, terminalIndex: w.from.terminalIndex },
+      to:   { compId: nto,   terminalIndex: w.to.terminalIndex },
+      color: w.color || null
+    };
+    this.wires.push(nw);
+  }
+
+  // 3) select pasted parts
+  this.selected = null;
+  this.multiSelected = [...newComps];
+
+  // 4) recompute nets only for consistent labels; (stable naming code keeps user labels)
+  // if (typeof this.recomputeNets === 'function') this.recomputeNets();
+
+  this.draw();
+  return newComps.map(c => c.id);
+}
+
+
 
 // Recompute net labels from scratch using remaining wires
 recomputeNets() {
 
-  // --- helpers for stable net naming ---
+  // --- helpers for stable net naming --- inko remove kiya ja skta h agr net mein problems aayi to
 const isAuto = (s) => typeof s === 'string' && /^net\d+$/i.test(s);
 
 // snapshot old labels (before we touch anything)
@@ -1190,6 +1321,8 @@ for (const s of oldLabelByNode.values()) {
   if (m) maxAuto = Math.max(maxAuto, parseInt(m[1], 10));
 }
 let nextAuto = maxAuto + 1;
+
+//ye block yahan tk h jo net mein problem aane wali situation mein remove kiya ja skta h
 
   // DSU helpers
   const parent = new Map();
@@ -1225,7 +1358,7 @@ let nextAuto = maxAuto + 1;
   }
 
   // 3) assign fresh net labels per connected component
-  // 3) build connected groups from DSU
+  // 3) build connected groups from DSU  ye bhi remove kiya ja skta h in-case net labels mein problem hui
 const rootMembers = new Map(); // root -> [{compId, termIndex}]
 for (const comp of this.components) {
   const terms = comp.terminals || [];

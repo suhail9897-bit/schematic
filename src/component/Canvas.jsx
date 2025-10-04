@@ -9,6 +9,8 @@ const Canvas = React.forwardRef((props, ref) => {
   const canvasRef = useRef(null);
   const engineRef = useRef(null);
   const roRef = useRef(null);
+  const lastMouseRef = useRef({ x: 0, y: 0 });
+
 
   // 🟢 Session-scoped store for uploaded .SUBCKT blocks (clears on refresh)
 const subcktStoreRef = useRef({
@@ -71,6 +73,51 @@ const subcktStoreRef = useRef({
              y: Math.round(wy / engineRef.current.gridSize) * engineRef.current.gridSize };
   };
 
+    // Track mouse (world coords) + focus + copy/paste hotkeys
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+
+    // Keep last world mouse position
+    const onMove = (e) => { lastMouseRef.current = worldFromEvent(e); };
+    el.addEventListener('mousemove', onMove);
+
+    // Make canvas focusable so it can receive key events even with DevTools open
+    el.setAttribute('tabindex', '0');
+    el.classList.add('outline-none'); // optional: no blue outline
+    const focusIt = () => el.focus({ preventScroll: true });
+    focusIt();
+    el.addEventListener('mousedown', focusIt);
+
+    // Ctrl+C / Ctrl+V
+    const onKey = (e) => {
+      // COPY
+      if (e.ctrlKey && (e.key === 'c' || e.key === 'C')) {
+        engineRef.current?.copySelection?.();
+        e.preventDefault(); e.stopPropagation();
+        return;
+      }
+      // PASTE at mouse
+      if (e.ctrlKey && (e.key === 'v' || e.key === 'V')) {
+        const p = lastMouseRef.current || { x: 0, y: 0 };
+        engineRef.current?.pasteClipboardAt?.(p.x, p.y);
+        e.preventDefault(); e.stopPropagation();
+      }
+    };
+
+    // Listen on both: canvas (preferred) + window (fallback)
+    el.addEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey);
+
+    return () => {
+      el.removeEventListener('mousemove', onMove);
+      el.removeEventListener('mousedown', focusIt);
+      el.removeEventListener('keydown', onKey);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, []);
+
+
 
     // 🔗 Wire-cut overlay hook: engine -> React
   useEffect(() => {
@@ -91,6 +138,9 @@ const subcktStoreRef = useRef({
       if (engineRef.current) engineRef.current.uiHooks = null;
     };
   }, []);
+
+
+
 
   // ---- Utilities moved from App: download/rotate/delete/clearAll ----
  // 1) UI trigger: open Tailwind modal
@@ -239,6 +289,12 @@ const subcktStoreRef = useRef({
         engineRef.current?.setMarqueeEnabled?.(next);
         return next;
       },
+      copySelected:    () => engineRef.current?.copySelection?.(),
+      pasteAtCursor:   () => {
+      const p = lastMouseRef.current || { x: 0, y: 0 };
+      return engineRef.current?.pasteClipboardAt?.(p.x, p.y);
+      },
+
 
 
     }),
@@ -297,7 +353,7 @@ const subcktStoreRef = useRef({
 
    return (
     <>
-      <canvas ref={canvasRef} className="flex-1 bg-black block" />
+      <canvas ref={canvasRef} className="flex-1 bg-black block outline-none" tabIndex={0} />
 
       {/* 🔵 Placement overlay (captures only when active) */}
       {placing && (
