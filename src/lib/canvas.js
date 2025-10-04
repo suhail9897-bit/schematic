@@ -377,7 +377,8 @@ buildDesignSnapshot() {
       "diodeFixed","diodeSize",
       "npn","pnp","nmos","pmos",
       "nand","nor","xor",
-      "vdc"
+      "vdc",
+      "subckt"
     ]);
     return {
       id: c.id,
@@ -464,9 +465,16 @@ loadDesignSnapshot(snapshot) {
       diodeFixed: c.diodeFixed, diodeSize: c.diodeSize,
       npn: c.npn, pnp: c.pnp, nmos: c.nmos, pmos: c.pmos,
       nand: c.nand, nor: c.nor, xor: c.xor,
-      vdc: c.vdc
+      vdc: c.vdc,
+      subckt: c.subckt || null
     };
     this.components.push(restored);
+    // ✅ Safety for very old snapshots: if it's a box but terminals missing, rebuild
+if (restored.type === 'subcktbox') {
+  if (!Array.isArray(restored.terminals) || !restored.terminals.length) {
+    restored.terminals = getSubcktBoxTerminals(restored, this.gridSize);
+  }
+}
   }
 
   // 4) restore counters (for future numbering continuity)
@@ -1185,7 +1193,12 @@ copySelection() {
   );
 
   // Snapshot components (shallow clone is fine; we'll rebuild new ids on paste)
-  const compsSnap = comps.map(c => ({ ...c }));
+ const compsSnap = comps.map(c => ({
+  ...c,
+  // deep clone terminals so snapshot is independent
+  terminals: (c.terminals || []).map(t => ({ ...t })),
+}));
+
 
   this.clipboard = {
     comps: compsSnap,
@@ -1225,6 +1238,75 @@ getSelectionInfo() {
   return { ids, bbox: { minX, minY, maxX, maxY } };
 }
 
+// ---- Make auto net names unique only for just-pasted components ----
+uniquifyPastedNets(newComps = []) {
+  if (!Array.isArray(newComps) || !newComps.length) return;
+
+  // auto nets: net<digits> or net<digits><letters>  e.g. net1, net1a, net23ab
+  const AUTO_RX = /^net(\d+)([a-z]*)$/i;
+  const isAuto = (s) => typeof s === 'string' && AUTO_RX.test(s);
+
+  // ids of newly pasted comps
+  const newIds = new Set(newComps.map(c => c.id));
+
+  // collect all net labels already used by existing (non-pasted) components
+  const used = new Set();
+  for (const c of this.components) {
+    if (newIds.has(c.id)) continue;
+    (c.terminals || []).forEach(t => {
+      if (t?.netLabel) used.add(t.netLabel);
+    });
+  }
+
+  // group new terminals by OLD label (only auto nets)
+  const byLabel = new Map(); // oldLabel -> [{compId, idx}]
+  for (const c of newComps) {
+    (c.terminals || []).forEach((t, idx) => {
+      const lab = t?.netLabel;
+      if (!lab || !isAuto(lab)) return; // custom names untouched
+      if (!byLabel.has(lab)) byLabel.set(lab, []);
+      byLabel.get(lab).push({ compId: c.id, idx });
+    });
+  }
+
+  // suffix generator: a, b, c, …, aa, ab, …
+  const alpha = 'abcdefghijklmnopqrstuvwxyz';
+  const bumpFrom = (root) => {
+    let k = 0;
+    while (true) {
+      let suf = '';
+      let n = k;
+      do {
+        suf = alpha[n % alpha.length] + suf;
+        n = Math.floor(n / alpha.length) - 1;
+      } while (n >= 0);
+      const cand = `${root}${suf}`;
+      if (!used.has(cand)) return cand;
+      k++;
+    }
+  };
+
+  // for each old auto-label, if it clashes with existing -> bump only the pasted ones
+  for (const [oldLab, nodes] of byLabel.entries()) {
+    if (!used.has(oldLab)) { used.add(oldLab); continue; }
+
+    const m = AUTO_RX.exec(oldLab);      // catches net1, net1a, net1zz...
+    const root = m ? `net${m[1]}` : oldLab;  // root = "net1"; suffix बाद में bump होगा
+    const newLab = bumpFrom(root);
+    used.add(newLab);
+
+    // apply on all terminals of the pasted group that had oldLab
+    for (const { compId, idx } of nodes) {
+      const comp = this.components.find(c => c.id === compId);
+      if (!comp || !comp.terminals || !comp.terminals[idx]) continue;
+      comp.terminals[idx].netLabel = newLab;
+      // keep wire-end metadata consistent
+      this._updateWireLabelsFor(compId, idx, newLab);
+    }
+  }
+}
+
+
 // Paste clipboard near (tx, ty) world position; returns new ids
 pasteClipboardAt(tx, ty) {
   if (!this.clipboard) return [];
@@ -1246,7 +1328,7 @@ pasteClipboardAt(tx, ty) {
   for (const snap of this.clipboard.comps) {
     const nx = Math.round((snap.x + dx) / this.gridSize) * this.gridSize;
     const ny = Math.round((snap.y + dy) / this.gridSize) * this.gridSize;
-    if (this._overlapsAnyComponent(nx, ny /*, 120 */)) {
+    if (this._overlapsAnyComponent(nx, ny , 70 )) {
       alert("Paste blocked: overlaps existing components. Paste somewhere else.");
       return [];
     }
@@ -1255,7 +1337,12 @@ pasteClipboardAt(tx, ty) {
 
   // 1) spawn components
   for (const snap of this.clipboard.comps) {
-    const c = { ...snap };
+    const c = {
+  ...snap,
+  // ensure pasted instance has its own terminals objects
+  terminals: (snap.terminals || []).map(t => ({ ...t })),
+};
+
     const oldId = c.id;
     c.id = newId();
 
@@ -1271,20 +1358,49 @@ pasteClipboardAt(tx, ty) {
     idMap.set(oldId, c.id);
   }
 
-  // 2) rebuild wires for the new components
-  for (const w of this.clipboard.wires) {
-    const nfrom = idMap.get(w.from.compId);
-    const nto   = idMap.get(w.to.compId);
-    if (!nfrom || !nto) continue; // should not happen, but safe-guard
+// 2) rebuild wires for the new components (and route them)
+for (const w of this.clipboard.wires) {
+  const nfrom = idMap.get(w.from.compId);
+  const nto   = idMap.get(w.to.compId);
+  if (!nfrom || !nto) continue;
 
-    const nw = {
-      id: newId(),
-      from: { compId: nfrom, terminalIndex: w.from.terminalIndex },
-      to:   { compId: nto,   terminalIndex: w.to.terminalIndex },
-      color: w.color || null
-    };
-    this.wires.push(nw);
+  const nw = {
+    id: newId(),
+    from: { compId: nfrom, terminalIndex: w.from.terminalIndex },
+    to:   { compId: nto,   terminalIndex: w.to.terminalIndex },
+    color: w.color || null,
+    path: null
+  };
+
+  // find newly pasted endpoints (world coords)
+  const fc = this.components.find(c => c.id === nfrom);
+  const tc = this.components.find(c => c.id === nto);
+  const ft = fc?.terminals?.[w.from.terminalIndex];
+  const tt = tc?.terminals?.[w.to.terminalIndex];
+
+  if (fc && tc && ft && tt) {
+    const start = { x: fc.x + (ft.x || 0), y: fc.y + (ft.y || 0) };
+    const end   = { x: tc.x + (tt.x || 0), y: tc.y + (tt.y || 0) };
+
+    // try autoroute; fallback to simple 'L' if it doesn't return anything
+    let path = null;
+    try {
+      // aStarOrthogonalPath(start, end, components, gridSize) — jo aap wire.js me use karte ho
+      path = aStarOrthogonalPath(start, end, this.components, this.gridSize);
+    } catch {}
+
+    if (!Array.isArray(path) || !path.length) {
+      path = [ start, { x: end.x, y: start.y }, end ];
+    }
+    nw.path = path;
   }
+
+  this.wires.push(nw);
+}
+
+
+  // ⬇️ NEW: give the pasted group unique auto-net names if they clash with existing ones
+this.uniquifyPastedNets(newComps);
 
   // 3) select pasted parts
   this.selected = null;
