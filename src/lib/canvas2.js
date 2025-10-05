@@ -599,6 +599,7 @@ if (this.uiHooks?.onWireHit) this.uiHooks.onWireHit(null);
           }
 
           this.draw();
+          this._commit('wire:add');
           return;
         }
       }
@@ -739,6 +740,13 @@ if (this.marquee && this.marquee.active) {
     if (this.selected) {
       this.rerouteWiresFor(this.selected);
     }
+
+    // ✅ Commit only if position actually changed
+if (this.selected &&
+    (this.selected.x !== this.lastSafeX || this.selected.y !== this.lastSafeY)) {
+  this._commit('move');
+}
+
 
     this.draw();
   };

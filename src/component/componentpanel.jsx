@@ -307,7 +307,7 @@ useEffect(() => {
            <Tooltip text="Undo">
             <button
             className={btn} 
-            onClick={() => console.log('clicked: undo')} 
+            onClick={() => canvasRef.current?.undo?.()}
             >
            <MdUndo size={18} />
             </button>
@@ -316,7 +316,7 @@ useEffect(() => {
           <Tooltip text="Redo">
             <button 
             className={btn} 
-            onClick={() => console.log('clicked: redo')} 
+            onClick={() => canvasRef.current?.redo?.()}
             >
             <MdRedo size={18} />
             </button>

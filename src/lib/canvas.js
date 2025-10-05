@@ -157,6 +157,14 @@ class CanvasUtils {
 
   }
 
+ _commit(kind) {
+  try {
+    const snap = this.buildDesignSnapshot();
+    this.uiHooks?.onCommittedChange?.(kind, snap);
+  } catch {}
+}
+
+
   // Add a subcircuit box component at origin (grid-snap), with safety checks
 addSubcktBox(spec = {}) {
   const g = this.gridSize || 30;
@@ -202,6 +210,7 @@ addSubcktBox(spec = {}) {
   this.components.push(comp);
   this.selected = comp;
   this.draw();
+   this._commit('box:add');
   return comp;
 }
 
@@ -300,6 +309,7 @@ placeGhostNow() {
   }
 
     this.draw();
+    this._commit('place');
     return true;
   }
   return false;
@@ -307,10 +317,35 @@ placeGhostNow() {
 
 setWireColor(wireId, color) {
   const w = this.wires.find(w => w.id === wireId);
-  if (!w) return;
+  if (!w) return false;
+
+  const prev = w.color || '#ffffff';
+  if (String(prev).toLowerCase() === String(color).toLowerCase()) {
+    return false; // no-op → history na push karo
+  }
+
   w.color = color;
   this.draw();
+  this._commit('wire:color');
+  return true;
 }
+
+cutSelectedWire() {
+  const hit = this._wireHit;        // Canvas.jsx se set hota hai via uiHooks
+  if (!hit || !hit.wireId) return false;
+
+  // actually delete the wire
+  deleteWireById(this, hit.wireId); // recomputeNets() + draw() yahi call karta hai
+
+  // UI clean-up
+  this._wireHit = null;
+  if (this.uiHooks?.onWireHit) this.uiHooks.onWireHit(null);
+
+  // history snapshot
+  this._commit('wire:delete');
+  return true;
+}
+
 
 getWireColor(wireId) {
   const w = this.wires.find(w => w.id === wireId);
@@ -441,7 +476,14 @@ loadDesignSnapshot(snapshot) {
   }
 
   // 1) clear
-  this.clearAll();
+  // 1) clear  (SOFT CLEAR: no draw, no counters reset, no viewport touch)
+this.components = [];
+this.wires = [];
+this.selected = null;
+this.selectedTerminals = [];
+this.multiSelected = [];
+this.marquee = null;
+
 
   // 2) restore canvas/view
   if (snapshot.canvas) {
@@ -451,6 +493,14 @@ loadDesignSnapshot(snapshot) {
     if (typeof snapshot.canvas.offsetY === "number")  this.offsetY  = snapshot.canvas.offsetY;
     if (typeof snapshot.canvas.netCounter === "number") this.netCounter = snapshot.canvas.netCounter;
   }
+
+  // 2.5) notify React overlay about viewport restore
+this.uiHooks?.onViewport?.({
+  offsetX: this.offsetX,
+  offsetY: this.offsetY,
+  scale:   this.scale
+});
+
 
   // 3) restore components
   const comps = Array.isArray(snapshot.components) ? snapshot.components : [];
@@ -1168,6 +1218,8 @@ if (this.multiSelected && this.multiSelected.length) {
   this.marquee = null;
 
   this.draw();
+  this._commit('delete');
+
   return;            // ✅ single-delete logic niche rehne do (unchanged)
 }
 
@@ -1191,6 +1243,8 @@ if (this.multiSelected && this.multiSelected.length) {
 
   // 5) redraw
   this.draw();
+  this._commit('delete');
+
 }
 
 // Copy current selection (components + fully-internal wires) into engine clipboard
@@ -1597,6 +1651,7 @@ clearAll() {
 
   // redraw clean grid
   this.draw();
+  
 }
 
  resize(width, height) {

@@ -4,6 +4,8 @@ import { extractBoxSpecFromDesign } from "../lib/parseBoxFromDesign";
 import DownloadPopup from "../extraFiles/downloadpopup";
 import { buildAndDownloadNetlist, buildNetlistString } from "./netlist";
 import WireActions from "../extraFiles/Wirecolor";
+import { useHistory } from "../state/historyStore";
+
 
 const Canvas = React.forwardRef((props, ref) => {
   const canvasRef = useRef(null);
@@ -60,6 +62,37 @@ const subcktStoreRef = useRef({
       if (roRef.current) roRef.current.disconnect();
     };
   }, []);
+
+// ✅ take only the functions you need (stable selectors)
+const baseline = useHistory(s => s.baseline);
+const commit   = useHistory(s => s.commit);
+
+// run baseline once
+const historyInitRef = useRef(false);
+
+useEffect(() => {
+  const eng = engineRef.current;
+  if (!eng) return;
+
+  if (!historyInitRef.current) {
+    baseline(eng.buildDesignSnapshot());   // put baseline at slot 0
+    historyInitRef.current = true;
+  }
+
+  // attach only our handler, preserve others
+  const hooks = eng.uiHooks = { ...(eng.uiHooks || {}) };
+  const prev  = hooks.onCommittedChange;
+  hooks.onCommittedChange = (kind, snapshot) => commit(kind, snapshot);
+
+  // cleanup: remove only our handler
+  return () => {
+    if (!engineRef.current?.uiHooks) return;
+    if (prev) engineRef.current.uiHooks.onCommittedChange = prev;
+    else      delete engineRef.current.uiHooks.onCommittedChange;
+  };
+}, [baseline, commit]);
+
+
 
   // 🔵 smart-draw helpers (world <-> screen)
     const worldFromEvent = (e) => {
@@ -294,6 +327,16 @@ const subcktStoreRef = useRef({
       const p = lastMouseRef.current || { x: 0, y: 0 };
       return engineRef.current?.pasteClipboardAt?.(p.x, p.y);
       },
+
+      undo: () => {
+  const snap = useHistory.getState().undo();
+  if (snap) { engineRef.current?.loadDesignSnapshot(snap); engineRef.current?.draw(); }
+},
+redo: () => {
+  const snap = useHistory.getState().redo();
+  if (snap) { engineRef.current?.loadDesignSnapshot(snap); engineRef.current?.draw(); }
+},
+
 
 
 
