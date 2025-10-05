@@ -1,7 +1,7 @@
 // src/state/historyStore.js
 import { create } from 'zustand';
 
-const LIMIT = 6; // baseline + last 5 activities
+const LIMIT = 201; // baseline + last 5 activities
 
 export const useHistory = create((set, get) => ({
   undoStack: [],              // [{ kind, snapshot }]

@@ -519,6 +519,14 @@ this.uiHooks?.onViewport?.({
       subckt: c.subckt || null
     };
     this.components.push(restored);
+
+    // ✅ Ensure base so draw() doesn't re-rotate labels after undo/redo
+if (!restored.terminalsBase) {
+  restored.terminalsBase = (restored.terminals || []).map(t => ({
+    x: t.x, y: t.y, netLabel: t.netLabel || ""
+  }));
+}
+
     // ✅ Safety for very old snapshots: if it's a box but terminals missing, rebuild
 if (restored.type === 'subcktbox') {
   if (!Array.isArray(restored.terminals) || !restored.terminals.length) {
@@ -1189,6 +1197,8 @@ resetView() {
   comp.angle = ((comp.angle || 0) + angleDelta) % (2 * Math.PI);
 
   this.rerouteWiresFor(comp);
+  this._commit('rotate');
+  
   this.draw();
 }
 
