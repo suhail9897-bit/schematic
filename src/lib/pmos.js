@@ -91,7 +91,7 @@ export function getPmosVMFor(comp) {
   const p = comp.pmos || {};
   const L = Number.isFinite(p.L) ? p.L : 1;   // µm
   const W = Number.isFinite(p.W) ? p.W : 1;   // µm
-  const type = p.type === 'HVT' ? 'HVT' : 'LVT';
+  const type = (p.type === 'HVT' || p.type === 'SVT') ? p.type : 'LVT';
   const name = (comp.label || 'PMOS').replace(/\s+/g, '').slice(0, 12);
   return { name, L, W, type };
 }
@@ -113,9 +113,10 @@ export function setPmosFromUIFor(comp, payload = {}) {
   comp.pmos.L = clamp(payload.L, 0.05, 1000, comp.pmos.L);
   comp.pmos.W = clamp(payload.W, 0.05, 1000, comp.pmos.W);
 
-  if (payload.type === 'HVT' || payload.type === 'LVT') {
-    comp.pmos.type = payload.type;
-  }
+if (payload.type === 'HVT' || payload.type === 'LVT' || payload.type === 'SVT') {
+  comp.pmos.type = payload.type;
+}
+
  // NEW: optional BODY/BULK net name from Nets/Ports
  if (typeof payload.bodyNet === 'string') {
    comp.pmos.bodyNet = payload.bodyNet.trim(); // '' allowed

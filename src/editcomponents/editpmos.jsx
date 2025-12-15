@@ -73,6 +73,13 @@ export default function EditPMOS({ api }) {
         >
           HVT
         </button>
+          {/* NEW: “PMOS” = SVT */}
+  <button
+    className={`px-2 py-1 rounded ${vm.type==='SVT'?'bg-green-600 text-white':'bg-[#1e1e1e] text-gray-200'}`}
+    onClick={() => push({ type: 'SVT' })}
+  >
+    PMOS
+  </button>
       </div>
     </div>
   );

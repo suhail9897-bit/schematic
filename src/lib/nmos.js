@@ -98,7 +98,7 @@ export function getNmosVMFor(comp) {
   const n = comp.nmos || {};
   const L = Number.isFinite(n.L) ? n.L : 1;     // µm
   const W = Number.isFinite(n.W) ? n.W : 1;     // µm
-  const type = n.type === 'HVT' ? 'HVT' : 'LVT';
+  const type = (n.type === 'HVT' || n.type === 'SVT') ? n.type : 'LVT';
   const name = (comp.label || 'NMOS').replace(/\s+/g, '').slice(0, 12);
   return { name, L, W, type };
 }
@@ -121,9 +121,10 @@ export function setNmosFromUIFor(comp, payload = {}) {
   comp.nmos.L = clamp(payload.L, 0.05, 1000, comp.nmos.L); // 0.05–1000 µm
   comp.nmos.W = clamp(payload.W, 0.05, 1000, comp.nmos.W); // 0.05–1000 µm
 
-  if (payload.type === 'HVT' || payload.type === 'LVT') {
-    comp.nmos.type = payload.type;
-  }
+if (payload.type === 'HVT' || payload.type === 'LVT' || payload.type === 'SVT') {
+  comp.nmos.type = payload.type;
+}
+
    // NEW: BODY/BULK net name from Nets/Ports tab (optional)
   // keep raw label; netlist will normalize and default to SOURCE if blank
   if (typeof payload.bodyNet === 'string') {
