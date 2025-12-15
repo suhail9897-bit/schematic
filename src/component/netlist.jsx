@@ -294,7 +294,7 @@ const needPMOS_SVT = engine.components.some(
 
         const L = L_um ;
         const W = W_um ;
-        lines.push(`M${mn} ${nd} ${ng} ${ns} ${nb} ${model} W=${W} L=${L}`);
+        lines.push(`M${mn} ${nd} ${ng} ${ns} ${nb} ${model} W=${W}u L=${L}u`);
   
         break;
       }
@@ -313,7 +313,7 @@ const needPMOS_SVT = engine.components.some(
 
         const L = L_um ;
         const W = W_um ;
-        lines.push(`M${mp} ${nd} ${ng} ${ns} ${nb} ${model} W=${W} L=${L}`);
+        lines.push(`M${mp} ${nd} ${ng} ${ns} ${nb} ${model} W=${W}u L=${L}u`);
        
         break;
       }
