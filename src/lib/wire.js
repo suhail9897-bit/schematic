@@ -69,6 +69,19 @@ export function aStarOrthogonalPath(start, end, components, gridSize = 30) {
 
   const key = (p) => `${p.x},${p.y}`;
   const heuristic = (p) => Math.abs(p.x - end.x) + Math.abs(p.y - end.y);
+  // 🛑 0) If start == end, nothing to route
+  if (start.x === end.x && start.y === end.y) {
+    return [start, end];
+  }
+
+  // 🧭 0.1) Bounded search window + hard iteration cap (prevents freezes)
+  const margin = 40 * gridSize; // generous envelope around start/end
+  const minX = Math.min(start.x, end.x) - margin;
+  const maxX = Math.max(start.x, end.x) + margin;
+  const minY = Math.min(start.y, end.y) - margin;
+  const maxY = Math.max(start.y, end.y) + margin;
+  const MAX_ITERS = 200000;
+  let iters = 0;
 
   gScore.set(key(start), 0);
   fScore.set(key(start), heuristic(start));
@@ -100,6 +113,8 @@ export function aStarOrthogonalPath(start, end, components, gridSize = 30) {
   }
 
   while (openSet.length > 0) {
+    // ⏳ guard against runaway expansion
+    if (++iters > MAX_ITERS) return null;
     // Sort open set by lowest fScore
     openSet.sort((a, b) => fScore.get(key(a)) - fScore.get(key(b)));
     const current = openSet.shift();
@@ -132,7 +147,12 @@ export function aStarOrthogonalPath(start, end, components, gridSize = 30) {
       const neighborKey = key(neighbor);
 
       if (visited.has(neighborKey)) continue;
-if (isInsideComponent(neighbor, components, buffer)) continue;
+      // 🧱 1) keep search within reasonable bounds
+      if (neighbor.x < minX || neighbor.x > maxX || neighbor.y < minY || neighbor.y > maxY) continue;
+      // 🟢 2) allow stepping onto exact goal even if "inside" a component core
+      if (!(neighbor.x === end.x && neighbor.y === end.y)) {
+        if (isInsideComponent(neighbor, components, buffer)) continue;
+      }
 
 const col = Math.round(neighbor.x / gridSize);
 const row = Math.round(neighbor.y / gridSize);

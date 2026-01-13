@@ -26,22 +26,28 @@ function buildNetlistString(engine, rawCellName) {
 
 // Which MOS models are needed? (scan once)
 const needNMOS_LVT = engine.components.some(
-  c => (c.type || '').toLowerCase() === 'nmos' && (c.nmos?.type === 'LVT')
+  c => (c.type||'').toLowerCase()==='nmos' &&
+       ['LVT'].includes(String(c.nmos?.type ?? 'LVT').toUpperCase())
 );
 const needNMOS_HVT = engine.components.some(
-  c => (c.type || '').toLowerCase() === 'nmos' && (c.nmos?.type === 'HVT')
+  c => (c.type||'').toLowerCase()==='nmos' &&
+       String(c.nmos?.type||'').toUpperCase()==='HVT'
 );
 const needNMOS_SVT = engine.components.some(
-  c => (c.type || '').toLowerCase() === 'nmos' && (c.nmos?.type === 'SVT')
+  c => (c.type||'').toLowerCase()==='nmos' &&
+       ['SVT','NMOS'].includes(String(c.nmos?.type ?? '').toUpperCase())
 );
 const needPMOS_LVT = engine.components.some(
-  c => (c.type || '').toLowerCase() === 'pmos' && (c.pmos?.type === 'LVT')
+  c => (c.type||'').toLowerCase()==='pmos' &&
+       ['LVT'].includes(String(c.pmos?.type ?? 'LVT').toUpperCase())
 );
 const needPMOS_HVT = engine.components.some(
-  c => (c.type || '').toLowerCase() === 'pmos' && (c.pmos?.type === 'HVT')
+  c => (c.type||'').toLowerCase()==='pmos' &&
+       String(c.pmos?.type||'').toUpperCase()==='HVT'
 );
 const needPMOS_SVT = engine.components.some(
-  c => (c.type || '').toLowerCase() === 'pmos' && (c.pmos?.type === 'SVT')
+  c => (c.type||'').toLowerCase()==='pmos' &&
+       ['SVT','PMOS'].includes(String(c.pmos?.type ?? '').toUpperCase())
 );
 
 
@@ -289,8 +295,8 @@ const needPMOS_SVT = engine.components.some(
         const nb = NN(comp.nmos?.bodyNet || "VSS");
         const L_um = comp.nmos?.L ?? 1;
         const W_um = comp.nmos?.W ?? 1;
-        const t = comp.nmos?.type || 'LVT';
-        const model = (t === 'HVT') ? 'NMOS_HVT' : (t === 'SVT' ? 'NMOS_SVT' : 'NMOS_LVT');
+        const t = String(comp.nmos?.type || 'LVT').toUpperCase();
+        const model = (t==='HVT') ? 'NMOS_HVT' : ((t==='SVT'||t==='NMOS') ? 'NMOS_SVT' : 'NMOS_LVT');
 
         const L = L_um ;
         const W = W_um ;
@@ -308,8 +314,8 @@ const needPMOS_SVT = engine.components.some(
         const nb = NN(comp.pmos?.bodyNet || "VDD"); // NEW: BODY from UI, default VDD
         const L_um = comp.pmos?.L ?? 1;
         const W_um = comp.pmos?.W ?? 1;
-        const t = comp.pmos?.type || 'LVT';
-        const model = (t === 'HVT') ? 'PMOS_HVT' : (t === 'SVT' ? 'PMOS_SVT' : 'PMOS_LVT');
+        const t = String(comp.pmos?.type || 'LVT').toUpperCase();
+        const model = (t==='HVT') ? 'PMOS_HVT' : ((t==='SVT'||t==='PMOS') ? 'PMOS_SVT' : 'PMOS_LVT');
 
         const L = L_um ;
         const W = W_um ;
