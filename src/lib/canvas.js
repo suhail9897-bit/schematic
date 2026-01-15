@@ -1793,11 +1793,38 @@ drawGrid() {
         continue; // no reroute needed
       }
 
-      const newPath = aStarOrthogonalPath(from, to, this.components, this.gridSize);
-      if (newPath) {
-        wire.path = newPath;
-        this.lastReroutePositions.set(wire.id, { from, to });
-      }
+let newPath = null;
+
+// try A* first
+try {
+  newPath = aStarOrthogonalPath(from, to, this.components, this.gridSize);
+} catch (_) {}
+
+// ✅ fallback so wire ALWAYS stays attached to terminals
+if (!Array.isArray(newPath) || newPath.length < 2) {
+  const elbow1 = { x: to.x,   y: from.y };
+  const elbow2 = { x: from.x, y: to.y };
+
+  // pick a non-degenerate elbow (avoid duplicate points)
+  const isSame = (a, b) => a.x === b.x && a.y === b.y;
+
+  if (!isSame(elbow1, from) && !isSame(elbow1, to)) {
+    newPath = [from, elbow1, to];
+  } else if (!isSame(elbow2, from) && !isSame(elbow2, to)) {
+    newPath = [from, elbow2, to];
+  } else {
+    // worst-case: direct (still keeps endpoints correct)
+    newPath = [from, to];
+  }
+}
+
+wire.path = newPath;
+
+// (optional safety) if your code ever uses pathPoints somewhere else
+if (wire.pathPoints) wire.pathPoints = newPath;
+
+this.lastReroutePositions.set(wire.id, { from, to });
+
     }
   }
 }

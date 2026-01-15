@@ -17,7 +17,7 @@ import { drawNOT } from './not';
 import { drawNAND } from './nand';
 import { drawNOR } from './nor';
 import { drawXOR } from './xor';
-import { aStarOrthogonalPath, hitTestAllWires } from './wire.js';
+import { aStarOrthogonalPath, hitTestAllWires, pathIntersectsComponent } from './wire.js';
 import { drawSubcktBox } from './subcktbox';
 // same utility logic used in original file
 function areBoxesOverlapping(a, b, boxSize = 120) {
@@ -45,6 +45,112 @@ function _componentsInRect(components, rect, boxSize = 120) {
     return contains(c.x, c.y); // center based (same 120 box convention)
   });
 }
+
+// --- group-move helpers ---
+// translate whichever path array the wire has (path or pathPoints)
+function _translateWirePathInPlace(wire, dx, dy) {
+  const fields = ['path', 'pathPoints'];
+  for (const f of fields) {
+    if (Array.isArray(wire[f]) && wire[f].length >= 2) {
+      wire[f] = wire[f].map(p => ({ x: p.x + dx, y: p.y + dy }));
+      return true;
+    }
+  }
+  return false;
+}
+function _termWorld(inst, compId, termIndex) {
+  const comp = inst.components.find(c => String(c.id) === String(compId));
+  if (!comp || !comp.terminals?.[termIndex]) return null;
+  const t = comp.terminals[termIndex];
+  return { x: comp.x + t.x, y: comp.y + t.y };
+}
+
+
+// Build an ALWAYS-orthogonal polyline between two terminal world points.
+// - Terminals are not guaranteed to sit on the routing grid.
+// - A* works best on grid nodes, but we must still visually land exactly on terminals.
+// So we:
+//   1) snap endpoints to grid for routing anchors
+//   2) route between anchors (A*; if it fails, fall back to an L shape that avoids bodies)
+//   3) add tiny orthogonal "stubs" from real terminal -> anchor and anchor -> real terminal
+function _routeOrthogonalBetweenTerminals(host, fromWorld, toWorld) {
+  const gs = host.gridSize || 30;
+  const snap = (p) => ({ x: Math.round(p.x / gs) * gs, y: Math.round(p.y / gs) * gs });
+
+  const a0 = { x: fromWorld.x, y: fromWorld.y };
+  const b0 = { x: toWorld.x,   y: toWorld.y };
+  const a = snap(a0);
+  const b = snap(b0);
+
+  const stub = (p0, p1) => {
+    if (p0.x === p1.x && p0.y === p1.y) return [p0];
+    if (p0.x === p1.x || p0.y === p1.y) return [p0, p1];
+    // choose elbow that is less likely to cut through components
+    const elbow1 = { x: p1.x, y: p0.y };
+    const elbow2 = { x: p0.x, y: p1.y };
+    const path1 = [p0, elbow1, p1];
+    const path2 = [p0, elbow2, p1];
+    const hit1 = pathIntersectsComponent(path1, host.components);
+   const hit2 = pathIntersectsComponent(path2, host.components);
+    if (!hit1) return path1;
+    if (!hit2) return path2;
+    // if both collide, pick shorter manhattan (still orthogonal)
+    const d1 = Math.abs(p0.x - elbow1.x) + Math.abs(p0.y - elbow1.y) + Math.abs(elbow1.x - p1.x) + Math.abs(elbow1.y - p1.y);
+    const d2 = Math.abs(p0.x - elbow2.x) + Math.abs(p0.y - elbow2.y) + Math.abs(elbow2.x - p1.x) + Math.abs(elbow2.y - p1.y);
+    return d1 <= d2 ? path1 : path2;
+  };
+
+  // middle route on grid anchors
+  let mid = null;
+  try {
+    mid = aStarOrthogonalPath(a, b, host.components, gs);
+  } catch {}
+
+  if (!Array.isArray(mid) || mid.length < 2) {
+    // A* failed (often because terminals aren't exactly on grid). Use an L on anchors.
+    const elbow1 = { x: b.x, y: a.y };
+    const elbow2 = { x: a.x, y: b.y };
+    const cand1 = [a, elbow1, b];
+    const cand2 = [a, elbow2, b];
+    const ok1 = !pathIntersectsComponent(cand1, host.components);
+    const ok2 = !pathIntersectsComponent(cand2, host.components);
+    mid = ok1 ? cand1 : ok2 ? cand2 : cand1;
+  }
+
+  // Assemble: terminal -> anchor, anchor route, anchor -> terminal
+  const out = [];
+
+  const s1 = stub(a0, a);
+  for (const p of s1) out.push(p);
+
+  // mid already starts at a; avoid duplicate a
+  for (let i = 1; i < mid.length; i++) out.push(mid[i]);
+
+  const e1 = stub(b, b0);
+  for (let i = 1; i < e1.length; i++) out.push(e1[i]);
+
+  // cleanup: remove consecutive duplicates
+  const dedup = [];
+  for (const p of out) {
+    const last = dedup[dedup.length - 1];
+    if (!last || last.x !== p.x || last.y !== p.y) dedup.push(p);
+  }
+  // cleanup: remove collinear middle points (A-B-C in straight line)
+  const simplified = [];
+  for (const p of dedup) {
+    simplified.push(p);
+    while (simplified.length >= 3) {
+      const c = simplified[simplified.length - 1];
+      const b2 = simplified[simplified.length - 2];
+      const a2 = simplified[simplified.length - 3];
+      const collinear = (a2.x === b2.x && b2.x === c.x) || (a2.y === b2.y && b2.y === c.y);
+      if (collinear) simplified.splice(simplified.length - 2, 1);
+      else break;
+    }
+  }
+  return simplified.length >= 2 ? simplified : [a0, b0];
+}
+
 
 
 
@@ -485,19 +591,42 @@ if (this.marquee && (this.marquee.active || this.marquee.persist)) {
 }
 
 
+
 // Install only handleMouseDown on the prototype (mixin style)
 export function installHandleMouseDown(proto) {
   proto.handleMouseDown = async function handleMouseDown(e) {
-    // Right-button starts panning (NEW)
-if (e.button === 2) { // right mouse
+ const { x, y } = this.toWorldCoords(e.offsetX, e.offsetY);
+
+// SHIFT + Right mouse over a persisted marquee => start group-drag
+if (e.button === 2 && e.shiftKey && this.marquee && this.marquee.persist) {
+  const rect = { x1: this.marquee.x1, y1: this.marquee.y1, x2: this.marquee.x2, y2: this.marquee.y2 };
+  const picked = _componentsInRect(this.components, rect, 120); // your existing helper
+  this.multiSelected = picked.slice(); // keep list visible/consistent
+
+  this._groupDrag = {
+    ids: new Set(picked.map(c => String(c.id))),
+    origin: { x, y },
+    bases: new Map(picked.map(c => [String(c.id), { x: c.x, y: c.y }])),
+    dx: 0, dy: 0
+  };
+  this.dragging = true;
+  if (this.canvas) this.canvas.style.cursor = 'grabbing';
+  this.draw();
+  return;
+}
+
+// Right-button (no shift) = pan (your current behavior)
+if (e.button === 2) {
   this.panning = true;
   this._panStart = { sx: e.offsetX, sy: e.offsetY };
   this._panStartOffset = { x: this.offsetX, y: this.offsetY };
   if (this.canvas) this.canvas.style.cursor = 'grabbing';
-  return; // swallow further processing while panning
+  return;
 }
 
-    const { x, y } = this.toWorldCoords(e.offsetX, e.offsetY);
+
+
+  
     // console.log(this.components);
 // 🔁 Only on DOUBLE click: wire par scissor dikhao
 if (e.detail >= 2) { // 2nd click within system dblclick threshold
@@ -617,20 +746,43 @@ if (this.uiHooks?.onWireHit) this.uiHooks.onWireHit(null);
       ) {
          // ⬇️ Clicking a component while a marquee is visible:
     // if the component is NOT part of multiSelected → hide box + clear selection
-    if (this.marquee && (!this.multiSelected || !this.multiSelected.includes(comp))) {
-      this.marquee = null;
-      this.multiSelected = [];
-    }
+   // collapse marquee if visible and this comp wasn't part of it
+if (this.marquee && (!this.multiSelected || !this.multiSelected.includes(comp))) {
+  this.marquee = null;
+  this.multiSelected = [];
+}
 
-        this.selected = comp;
-        this.dragging = true;
+if (e.shiftKey || e.ctrlKey || e.metaKey) {
+  // toggle multi-select
+  if (!Array.isArray(this.multiSelected)) this.multiSelected = [];
+  const i = this.multiSelected.findIndex(c => c.id === comp.id);
+  if (i >= 0) this.multiSelected.splice(i, 1);
+  else this.multiSelected.push(comp);
 
-        // ✅ Store last safe position
-        this.lastSafeX = comp.x;
-        this.lastSafeY = comp.y;
+  // start group-drag baseline
+  this.selected = comp;
+  this.dragging = true;
+  this._dragOrigin = { x, y }; // use the world coords already computed above
+  this._originalPositions = new Map(
+    this.multiSelected.map(c => [c.id, { x: c.x, y: c.y }])
+  );
+  this.draw();
+  return;
+}
 
-        this.draw();
-        return;
+// single-select path (existing behavior)
+this.multiSelected = [];
+this.selected = comp;
+this.dragging = true;
+this.lastSafeX = comp.x;
+this.lastSafeY = comp.y;
+// also store a drag origin so MouseMove can reuse one code path
+this._dragOrigin = { x, y };
+this._originalPositions = null;
+this.draw();
+return;
+
+
       }
     }
 
@@ -674,6 +826,24 @@ if (this.panning) {
   if (this.uiHooks?.onViewport) this.uiHooks.onViewport(this.getViewport());
   return; // consume move while panning
 }
+// --- group-drag live move ---
+if (this._groupDrag) {
+  const { x, y } = this.toWorldCoords(e.offsetX, e.offsetY);
+  const dx = x - this._groupDrag.origin.x;
+  const dy = y - this._groupDrag.origin.y;
+  this._groupDrag.dx = dx; this._groupDrag.dy = dy;
+
+  for (const id of this._groupDrag.ids) {
+    const comp = this.components.find(c => String(c.id) === id);
+    const base = this._groupDrag.bases.get(id);
+    if (comp && base) { comp.x = base.x + dx; comp.y = base.y + dy; }
+  }
+  this.draw(); // keep it light; wires get finalized on mouseup
+  return;
+}
+
+
+
 
     // 📦 Marquee live update
 if (this.marquee && this.marquee.active) {
@@ -708,6 +878,49 @@ if (this.marquee && this.marquee.active) {
   };
 
   proto.handleMouseUp = function handleMouseUp() {
+
+// --- finalize group-drag ---
+if (this._groupDrag) {
+  const movedIds = this._groupDrag.ids;
+  const dx = this._groupDrag.dx || 0;
+  const dy = this._groupDrag.dy || 0;
+
+  // 1) If nothing actually moved, just clear
+  if (dx !== 0 || dy !== 0) {
+    // 2) Update wires
+    for (const w of this.wires) {
+      const in1 = movedIds.has(String(w.from?.compId));
+      const in2 = movedIds.has(String(w.to?.compId));
+
+      if (in1 && in2) {
+        // both endpoints moved together -> translate polyline
+        if (!_translateWirePathInPlace(w, dx, dy)) {
+          // no stored polyline yet; (re)route orthogonally
+          const s = _termWorld(this, w.from.compId, w.from.terminalIndex);
+          const t = _termWorld(this, w.to.compId, w.to.terminalIndex);
+          if (s && t) w.path = _routeOrthogonalBetweenTerminals(this, s, t);
+        }
+      } else if (in1 || in2) {
+        // exactly one endpoint moved -> recompute with A*
+        const s = _termWorld(this, w.from.compId, w.from.terminalIndex);
+        const t = _termWorld(this, w.to.compId, w.to.terminalIndex);
+     if (s && t) w.path = _routeOrthogonalBetweenTerminals(this, s, t);
+      }
+      // none inside -> leave as-is
+    }
+    // (optional) touch nets if your DSU assigns new labels on splits/merges
+    // this.recomputeNets?.();
+    this._commit?.('group:move');
+  }
+
+  this._groupDrag = null;
+  this.dragging = false;
+  if (this.canvas) this.canvas.style.cursor = 'default';
+  this.draw();
+  return;
+}
+
+
 
     // Stop panning if it was active (NEW)
 if (this.panning) {
