@@ -343,11 +343,11 @@ const needPMOS_SVT = engine.components.some(
         const tt  = comp.terminals || [];
         const inN = NN(tt[0]?.netLabel) || "NET_IN";
         const out = NN(tt[1]?.netLabel) || "NET_OUT";
-        const Wn = ((comp.not?.Wn ?? 1) * 1e-6).toFixed(6);
-        const Wp = ((comp.not?.Wp ?? 2) * 1e-6).toFixed(6);
-        const L  = ((comp.not?.L  ?? 1) * 1e-6).toFixed(6);
+        const Wn = ((comp.not?.Wn ?? 1) );
+        const Wp = ((comp.not?.Wp ?? 2) );
+        const L  = ((comp.not?.L  ?? 1) );
         const M  = Math.max(1, Math.min(64, comp.not?.m ?? 1));
-        lines.push(`X${name} ${out} ${inN} VDD VSS NOT1 WP=${Wp} WN=${Wn} L=${L} M=${M}`);
+        lines.push(`X${name} ${out} ${inN} VDD VSS NOT1 WP=${Wp}u WN=${Wn}u L=${L}u M=${M}`);
         break;
       }
 
@@ -358,9 +358,9 @@ const needPMOS_SVT = engine.components.some(
         const in2 = NN(tt[1]?.netLabel) || "NET_IN2";
         const hasIn3 = (comp.nand?.inputs === 3) && !!tt[3];
         const in3 = hasIn3 ? (NN(tt[3]?.netLabel) || "NET_IN3") : null;
-        const Wn = (comp.nand?.Wn ?? 1) * 1e-6;
-        const Wp = (comp.nand?.Wp ?? 2) * 1e-6;
-        const L  = (comp.nand?.L  ?? 1) * 1e-6;
+        const Wn = (comp.nand?.Wn ?? 1) ;
+        const Wp = (comp.nand?.Wp ?? 2) ;
+        const L  = (comp.nand?.L  ?? 1) ;
         const M  = (comp.nand?.m  ?? 1);
         const vdd = NN(comp.nand?.vddNet || "VDD");
         const vss = NN(comp.nand?.vssNet || "VSS");
@@ -368,7 +368,7 @@ const needPMOS_SVT = engine.components.some(
         const subckt = hasIn3 ? "NAND3" : "NAND2";
         const pins = hasIn3 ? [out, in1, in2, in3,vdd,vss]
                             : [out, in1, in2,vdd,vss];
-        lines.push(`X${name} ${pins.join(' ')} ${subckt} WP=${Wp} WN=${Wn} L=${L} M=${M}`);
+        lines.push(`X${name} ${pins.join(' ')} ${subckt} WP=${Wp}u WN=${Wn}u L=${L}u M=${M}`);
         break;
       }
 
@@ -379,9 +379,9 @@ const needPMOS_SVT = engine.components.some(
         const in2 = NN(tt[1]?.netLabel) || "NET_IN2";
         const hasIn3 = (comp.nor?.inputs === 3) && !!tt[3];
         const in3 = hasIn3 ? (NN(tt[3]?.netLabel) || "NET_IN3") : null;
-        const Wn = (comp.nor?.Wn ?? 1) * 1e-6;
-        const Wp = (comp.nor?.Wp ?? 2) * 1e-6;
-        const L  = (comp.nor?.L  ?? 1) * 1e-6;
+        const Wn = (comp.nor?.Wn ?? 1) ;
+        const Wp = (comp.nor?.Wp ?? 2) ;
+        const L  = (comp.nor?.L  ?? 1) ;
         const M  = (comp.nor?.m  ?? 1);
         const vdd = NN(comp.nor?.vddNet || "VDD");
         const vss = NN(comp.nor?.vssNet || "VSS");
@@ -389,7 +389,7 @@ const needPMOS_SVT = engine.components.some(
         const subckt = hasIn3 ? "NOR3" : "NOR2";
         const pins = hasIn3 ? [out, in1, in2, in3,vdd,vss]
                             : [out, in1, in2,vdd,vss];
-        lines.push(`X${name} ${pins.join(' ')} ${subckt} WP=${Wp} WN=${Wn} L=${L} M=${M}`);
+        lines.push(`X${name} ${pins.join(' ')} ${subckt} WP=${Wp}u WN=${Wn}u L=${L}u M=${M}`);
         break;
       }
 
@@ -400,16 +400,16 @@ const needPMOS_SVT = engine.components.some(
         const in2 = NN(tt[1]?.netLabel) || "NET_IN2";
         const hasIn3 = (comp.xor?.inputs === 3) && !!tt[3];
         const in3 = hasIn3 ? (NN(tt[3]?.netLabel) || "NET_IN3") : null;
-        const Wn = (comp.xor?.Wn ?? 1) * 1e-6;
-        const Wp = (comp.xor?.Wp ?? 2) * 1e-6;
-        const L  = (comp.xor?.L  ?? 1) * 1e-6;
+        const Wn = (comp.xor?.Wn ?? 1) ;
+        const Wp = (comp.xor?.Wp ?? 2) ;
+        const L  = (comp.xor?.L  ?? 1) ;
         const M  = (comp.xor?.m  ?? 1);
         const vdd = NN(comp.xor?.vddNet || "VDD");
         const vss = NN(comp.xor?.vssNet || "VSS");
         const subckt = hasIn3 ? "XOR3" : "XOR2";
         const pins = hasIn3 ? [out, in1, in2, in3,vdd,vss]
                             : [out, in1, in2,vdd,vss];
-        lines.push(`X${name} ${pins.join(' ')} ${subckt} WP=${Wp} WN=${Wn} L=${L} M=${M}`);
+        lines.push(`X${name} ${pins.join(' ')} ${subckt} WP=${Wp}u WN=${Wn}u L=${L}u M=${M}`);
         break;
       }
 
