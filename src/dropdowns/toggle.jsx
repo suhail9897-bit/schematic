@@ -74,7 +74,7 @@ useEffect(() => {    //for pmos body terminal
 const termTitle = (sel, idx) => {
   const t = String(sel?.type || '').toLowerCase();
   if (t === 'nmos' || t === 'pmos') {
-    const map = ['GATE', 'DRAIN', 'SOURCE'];
+    const map = ['GATE', 'DRAIN', 'SOURCE', 'BODY'];
     return map[idx] ?? `Terminal ${idx}`;
   }
   return `Terminal ${idx}`;
@@ -324,35 +324,8 @@ const title =
   );
 })}
 
-                  {/* NMOS BODY/BULK net name (netlist-only field) */}
-        {selected?.type === 'nmos' && (
-          <div className="flex items-center gap-2">
-            <div className="w-10 text-gray-400 text-xs">BODY</div>
-            <input
-            className="flex-1 min-w-0 bg-[#111] border border-gray-600 rounded px-2 py-1 outline-none focus:border-gray-400"
-            value={bodyNet}
-            onChange={(e) => {
-              const v = e.target.value;
-              setBodyNet(v);
-              canvasRef?.current?.setNmosFromUI?.({ bodyNet: v });
-            }}
-          />
-          </div>
-        )}
-       {selected?.type === 'pmos' && (
-   <div className="flex items-center gap-2">
-     <div className="w-10 text-gray-400 text-xs">BODY</div>
-     <input
-       className="flex-1 min-w-0 bg-[#111] border border-gray-600 rounded px-2 py-1 outline-none focus:border-gray-400"
-       value={pBodyNet}
-       onChange={(e) => {
-         const v = e.target.value;
-         setPBodyNet(v);                                   // UI stays responsive
-         canvasRef?.current?.setPmosFromUI?.({ bodyNet: v }); // engine state
-       }}
-     />
-   </div>
- )}
+
+
  {selected?.type === 'nand' && (
   <>
     <div className="flex items-center gap-2">

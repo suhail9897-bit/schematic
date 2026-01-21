@@ -302,9 +302,9 @@ drawWithRotation((cx, cy) => drawInductor(this.ctx, cx, cy, this.scale, text, is
       } else if (comp.type === 'pnp') {
         drawWithRotation((cx, cy) => drawPNP(this.ctx,  cx, cy, this.scale, maybeName(comp, 'PNP'),  isSelected));
       } else if (comp.type === 'nmos') {
-        drawWithRotation((cx, cy) => drawNMOS(this.ctx, cx, cy, this.scale, mosLabel(comp, 'NMOS'), isSelected, { bodyText: (comp?.nmos?.bodyNet ?? 'VSS') }));
+        drawWithRotation((cx, cy) => drawNMOS(this.ctx, cx, cy, this.scale, mosLabel(comp, 'NMOS'), isSelected, { bodyText: '' }));
       } else if (comp.type === 'pmos') {
-        drawWithRotation((cx, cy) => drawPMOS(this.ctx, cx, cy, this.scale, mosLabel(comp, 'PMOS'), isSelected,{ bodyText: (comp?.pmos?.bodyNet ?? 'VDD') }));
+        drawWithRotation((cx, cy) => drawPMOS(this.ctx, cx, cy, this.scale, mosLabel(comp, 'PMOS'), isSelected,{ bodyText: '' }));
       } else if (comp.type === 'in') {
         drawWithRotation((cx, cy) => drawIN(this.ctx,  cx, cy, this.scale, maybeName(comp, 'IN'),     isSelected));
       } else if (comp.type === 'out') {

@@ -53,23 +53,52 @@ export function drawPMOS(ctx, centerX, centerY, scale = 1, label = 'PMOS', isSel
   ctx.stroke();
   ctx.fill();
 
-  // Label
+      // NEW: center red-dot line to the right (x + 60)
+  ctx.save();
+  ctx.lineWidth = 2 / scale; // same thickness scaling
+  ctx.beginPath();
+  ctx.moveTo(centerX, centerY);
+  ctx.lineTo(centerX + 60, centerY);
+  ctx.stroke();
+  ctx.restore();
+  ctx.fill();
+
+    // NEW: Body/Bulk terminal (right stub from center to x=+60)
+  ctx.beginPath();
+  ctx.moveTo(centerX, centerY);
+  ctx.lineTo(centerX + 60, centerY);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(centerX + 60, centerY, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Label (2-line): "PMOS1" then "W:1 L:1"
+  const raw = String(label ?? '').trim();
+
+  // Split like: "PMOS1 w:1 L:1" -> name="PMOS1", dims="w:1 L:1"
+  const m = raw.match(/^(\S+)\s+((?:[wW]\s*:\s*[^ ]+)\s*(?:[lL]\s*:\s*[^ ]+).*)$/);
+  const nameText = (m && m[1]) ? m[1] : raw;
+  const dimsText = (m && m[2]) ? m[2].replace(/\s+/g, ' ').trim() : '';
+
+  // Name line
   ctx.font = `${12}px sans-serif`;
   ctx.fillStyle = isSelected ? 'yellow' : '#ccc';
   ctx.textAlign = 'start';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(label, centerX + 2, centerY);
+  ctx.textBaseline = 'top';
+  ctx.fillText(nameText, centerX + 4, centerY + 4);
+
+  // Dims line (just below name)
+  if (dimsText) {
+    ctx.font = `${11}px sans-serif`;
+    ctx.fillStyle = isSelected ? 'yellow' : '#ccc';
+    ctx.textAlign = 'start';
+    ctx.textBaseline = 'top';
+    ctx.fillText(dimsText, centerX + 4, centerY + 18);
+  }
+
   
- // NEW: BODY/BULK net text just above the main label
- const bodyTxt = String((opts && opts.bodyText) ?? 'VDD').trim();
- if (bodyTxt) {
-   ctx.font = `${10}px sans-serif`;
-   ctx.fillStyle = isSelected ? 'cyan' : 'cyan';
-   ctx.textAlign = 'start';
-   ctx.textBaseline = 'bottom';
-   // main label is at (centerY), place BODY slightly above it
-   ctx.fillText(bodyTxt, centerX + 4, centerY - 6);
- }
+
 
   ctx.restore();
 }
@@ -80,7 +109,8 @@ export function getPMOSTerminals(centerX, centerY) {
   return [
     { x: centerX - 60, y: centerY },     // Gate
     { x: centerX, y: centerY - 60 },     // Drain
-    { x: centerX, y: centerY + 60 }      // Source
+    { x: centerX, y: centerY + 60 },      // Source
+    { x: centerX + 60, y: centerY },     // Body/Bulk (NEW) 
   ];
 }
 
