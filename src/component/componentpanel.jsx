@@ -172,7 +172,7 @@ useEffect(() => {
     <div className="flex items-center gap-2 font-bold text-lg tracking-wide">
       <Cpu size={20} className="text-green-500" />
       <span>
-        LOG<span className="text-green-500">IC</span>KNOTS
+        schemat<span className="text-green-500">IC</span>
       </span>
     </div>
       <LeftSidebar

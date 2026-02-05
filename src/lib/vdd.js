@@ -9,25 +9,25 @@ ctx.fillStyle = isSelected ? 'yellow' : '#ccc';
 
   // Left terminal dot
   ctx.beginPath();
-  ctx.arc(-60, 0, 4, 0, Math.PI * 2);
+  ctx.arc(0, 60, 4, 0, Math.PI * 2);
   ctx.fill();
 
   // Line from dot to label
   ctx.beginPath();
-  ctx.moveTo(-60, 0);
-  ctx.lineTo(0, 0);
+  ctx.moveTo(-40, 0);
+  ctx.lineTo(40, 0);
   ctx.stroke();
 
    // vertical short horizontal line
   ctx.beginPath();
-  ctx.moveTo(-30, 0);
-  ctx.lineTo(-30, 30);
+  ctx.moveTo(0, 0);
+  ctx.lineTo(0, 60);
   ctx.stroke();
 
-ctx.fillText('+', -42, 14);
+ctx.fillText('+', -12, 14);
 
   // Label
-  ctx.fillText(label, -25, -5);
+  ctx.fillText(label, -15, -5);
 
   ctx.restore();
 }
@@ -36,6 +36,6 @@ ctx.fillText('+', -42, 14);
 // ✅ Terminals coordinates helper
 export function getVDDITerminals(centerX, centerY) {
   return [
-    { x: centerX - 60, y: centerY }
+    { x: centerX , y: centerY + 60 }
   ];
 }
