@@ -352,7 +352,7 @@ useEffect(() => {
   </button>
 </Tooltip>
 
-  <Tooltip text="Create box">
+  <Tooltip text="Intantiate">
     <button className={btn} onClick={handleCreateBoxPick}>
       <FaUpload size={15} />
     </button>
