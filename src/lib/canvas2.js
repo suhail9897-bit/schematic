@@ -164,6 +164,20 @@ export function installDraw(proto) {
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     this.ctx.translate(this.offsetX, this.offsetY);
     this.ctx.scale(this.scale, this.scale);
+    // ✅ endpoints lookup (wire connections)
+    const endpointSet = new Set();
+    for (const w of (this.wires || [])) {
+      if (w?.from) endpointSet.add(`${String(w.from.compId)}:${w.from.terminalIndex}`);
+      if (w?.to)   endpointSet.add(`${String(w.to.compId)}:${w.to.terminalIndex}`);
+    }
+        // ✅ flash highlight state cleanup (3s window)
+    const now = performance.now();
+    if (this._flashUntil && now > this._flashUntil) {
+      this._flashUntil = 0;
+      this._flashTermKeys = null; // Set of "compId:terminalIndex"
+    }
+
+
 
     // helper inside installDraw (add once near the top of the function scope)
 const deviceNamesOn = () => (this.showDeviceLabels !== false);
@@ -435,6 +449,19 @@ if (comp.terminals) {
       (Math.abs(terminal.x) <= 100 && Math.abs(terminal.y) <= 100);
 
         const { x: globalX, y: globalY } = labelWorld(comp, terminal);
+        const key = `${String(comp.id)}:${index}`;
+  const isConnected = endpointSet.has(key);
+  const isHovered =
+  this.hoveredTerminal &&
+  String(this.hoveredTerminal.compId) === String(comp.id) &&
+  this.hoveredTerminal.index === index;
+  const flashOn =
+  this._flashTermKeys &&
+  this._flashUntil &&
+  now < this._flashUntil &&
+  this._flashTermKeys.has(key);
+
+
 
 
     // (text + dot exactly as before)
@@ -450,16 +477,39 @@ if (comp.terminals) {
       this.ctx.textBaseline = 'bottom';
       this.ctx.fillText(terminal.netLabel, globalX, globalY - 8);
     }
-     const r = 2 / this.scale;
-    this.ctx.fillStyle = 'cyan';
-    this.ctx.beginPath();
-    this.ctx.arc(globalX, globalY, r, 0, Math.PI * 2);
-    this.ctx.fill();
-    this.ctx.strokeStyle = '#ffffff';
-    this.ctx.lineWidth = 2 / this.scale;
-    this.ctx.beginPath();
-    this.ctx.arc(globalX, globalY, r, 0, Math.PI * 2);
-    this.ctx.stroke();
+const r = 2 / this.scale;
+this.ctx.fillStyle = 'cyan';
+
+this.ctx.beginPath();
+this.ctx.arc(globalX, globalY, r, 0, Math.PI * 2);
+this.ctx.fill();
+
+// connected vs not connected outline
+this.ctx.strokeStyle = isConnected ? 'rgba(16,185,129,0.95)' : '#ffffff';
+this.ctx.lineWidth = 2 / this.scale;
+this.ctx.beginPath();
+this.ctx.arc(globalX, globalY, r, 0, Math.PI * 2);
+this.ctx.stroke();
+
+// hover ring (optional)
+if (isHovered) {
+  this.ctx.strokeStyle = isConnected ? 'rgba(16,185,129,1)' : 'rgba(239,68,68,1)';
+  this.ctx.lineWidth = 3 / this.scale;
+  this.ctx.beginPath();
+  this.ctx.arc(globalX, globalY, 6 / this.scale, 0, Math.PI * 2);
+  this.ctx.stroke();
+}
+
+// flash ring (3s) for connected network highlight
+if (flashOn) {
+  this.ctx.strokeStyle = 'rgb(65, 253, 68)';
+  this.ctx.lineWidth = 3 / this.scale;
+  this.ctx.beginPath();
+  this.ctx.arc(globalX, globalY, 10 / this.scale, 0, Math.PI * 2);
+  this.ctx.stroke();
+}
+
+
   }
 }
 
@@ -581,6 +631,29 @@ if (this.marquee && (this.marquee.active || this.marquee.persist)) {
   this.ctx.fillRect(x, y, w, h);
   this.ctx.restore();
 }
+if (this.hoveredTerminal) {
+  const comp = this.components.find(c => String(c.id) === String(this.hoveredTerminal.compId));
+  const t = comp?.terminals?.[this.hoveredTerminal.index];
+  if (comp && t) {
+    const key = `${String(comp.id)}:${this.hoveredTerminal.index}`;
+    const isConnected = endpointSet.has(key);
+    const msg = isConnected ? 'CONNECTED' : 'NOT CONNECTED';
+
+    const p = labelWorld(comp, t);
+    const pad = 6 / this.scale;
+    this.ctx.font = `${12}px sans-serif`;
+    const w = (this.ctx.measureText(msg).width + 2*pad);
+    const h = (18 / this.scale);
+
+    this.ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    this.ctx.fillRect(p.x + 10/this.scale, p.y - 22/this.scale, w, h);
+
+    this.ctx.fillStyle = isConnected ? 'rgba(16,185,129,1)' : 'rgba(239,68,68,1)';
+    this.ctx.textAlign = 'left';
+    this.ctx.textBaseline = 'middle';
+    this.ctx.fillText(msg, p.x + 10/this.scale + pad, p.y - 22/this.scale + h/2);
+  }
+}
 
 
     this.ctx.restore();
@@ -676,6 +749,55 @@ if (this.uiHooks?.onWireHit) this.uiHooks.onWireHit(null);
     this.marquee = null;
     this.multiSelected = [];
   }
+
+  // ✅ Flash-highlight: clicked terminal ke same net (wire-connected) par jitne terminals hain
+//    un sabko 3 seconds ke liye highlight state me daal do.
+try {
+  const startKey = `${String(comp.id)}:${i}`;
+
+  // adjacency build from existing wires
+  const adj = new Map();
+  const addEdge = (a, b) => {
+    if (!a || !b) return;
+    if (!adj.has(a)) adj.set(a, new Set());
+    adj.get(a).add(b);
+  };
+
+  for (const w of (this.wires || [])) {
+    if (!w?.from || !w?.to) continue;
+    const a = `${String(w.from.compId)}:${w.from.terminalIndex}`;
+    const b = `${String(w.to.compId)}:${w.to.terminalIndex}`;
+    addEdge(a, b);
+    addEdge(b, a);
+  }
+
+  // only if this terminal is actually connected to some wire
+  if (adj.has(startKey)) {
+    const q = [startKey];
+    const seen = new Set([startKey]);
+
+    while (q.length) {
+      const cur = q.shift();
+      const neigh = adj.get(cur);
+      if (!neigh) continue;
+      for (const nb of neigh) {
+        if (!seen.has(nb)) {
+          seen.add(nb);
+          q.push(nb);
+        }
+      }
+    }
+
+    this._flashTermKeys = seen;                 // Set of "compId:terminalIndex"
+    this._flashUntil = performance.now() + 3000;
+
+    if (this._flashTimer) clearTimeout(this._flashTimer);
+    this._flashTimer = setTimeout(() => this.draw(), 3100);
+
+    this.draw(); // immediate feedback
+  }
+} catch (_) {}
+
           this.selectedTerminals.push({ comp, index: i });
           // console.log('✅ Terminal selected:', comp.type, 'index:', i);
           clickedOnTerminal = true;
@@ -858,6 +980,52 @@ if (this.marquee && this.marquee.active) {
   this.draw();
   return;   // marquee mode consumes the move
 }
+
+// ---- terminal hover detect (all components) ----
+if (!this.dragging && !this.panning && !this._groupDrag && !(this.marquee && this.marquee.active)) {
+  const { x, y } = this.toWorldCoords(e.offsetX, e.offsetY);
+  const tol = 10 / this.scale;
+  const tol2 = tol * tol;
+
+  let best = null;
+
+  for (const comp of this.components) {
+    if (!comp?.terminals?.length) continue;
+    for (let i = 0; i < comp.terminals.length; i++) {
+      const t = comp.terminals[i];
+      // same logic as labelWorld (safe)
+      let wx, wy;
+      if (t.terminalSpace === 'world' || Math.abs(t.x) > 200 || Math.abs(t.y) > 200) {
+        wx = t.x; wy = t.y;
+      } else if (!comp.angle || comp.terminalsBase) {
+        wx = comp.x + t.x; wy = comp.y + t.y;
+      } else {
+        const s = Math.sin(comp.angle), c = Math.cos(comp.angle);
+        wx = comp.x + t.x * c - t.y * s;
+        wy = comp.y + t.x * s + t.y * c;
+      }
+
+      const dx = wx - x, dy = wy - y;
+      const d2 = dx*dx + dy*dy;
+      if (d2 <= tol2 && (!best || d2 < best.d2)) {
+        best = { compId: comp.id, index: i, d2 };
+      }
+    }
+  }
+
+  const same =
+    (!best && !this.hoveredTerminal) ||
+    (best && this.hoveredTerminal &&
+      String(best.compId) === String(this.hoveredTerminal.compId) &&
+      best.index === this.hoveredTerminal.index);
+
+  if (!same) {
+    this.hoveredTerminal = best ? { compId: best.compId, index: best.index } : null;
+    if (this.canvas) this.canvas.style.cursor = best ? 'pointer' : 'default';
+    this.draw();
+  }
+}
+
 
     if (!this.dragging || !this.selected) return;
 
