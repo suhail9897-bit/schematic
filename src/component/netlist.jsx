@@ -233,6 +233,9 @@ const needPMOS_SVT = engine.components.some(
     const val = comp.value || comp.label || "";
 
     switch (t) {
+    case "manualwire":
+    // manualWire is a short / connectivity helper; no SPICE instance line
+    break;
       case "resistor":
       case "capacitor":
       case "inductor":

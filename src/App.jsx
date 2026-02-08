@@ -12,6 +12,7 @@ const App = () => {
   const handleResistorClick = () => canvasApi.current?.togglePlacement('resistor');
   const handleCapacitorClick = () => canvasApi.current?.togglePlacement('capacitor');
   const handleInductorClick = () => canvasApi.current?.togglePlacement('inductor');
+  const handleWireClick = () => canvasApi.current?.togglePlacement('manualWire');
   const handleDiodeClick = () => canvasApi.current?.togglePlacement('diode');
 
   const handleNPNClick = () => canvasApi.current?.togglePlacement('npn');
@@ -52,6 +53,7 @@ const App = () => {
         onResistorClick={handleResistorClick}
         onCapacitorClick={handleCapacitorClick}
         onInductorClick={handleInductorClick}
+        onWireClick={handleWireClick}
         onDiodeClick={handleDiodeClick}
         onNPNClick={handleNPNClick}
         onPNPClick={handlePNPClick}

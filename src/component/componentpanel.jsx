@@ -92,7 +92,8 @@ const ComponentPanel = ({
   onRotateClick,
   onDeleteClick,
   onClearAllClick,
-  onResetViewClick
+  onResetViewClick,
+  onWireClick,
   }) => {
 
   // hidden input for "Create box"
@@ -194,6 +195,7 @@ useEffect(() => {
          onNANDClick={onNANDClick}
          onNORClick={onNORClick}
          onXORClick={onXORClick}
+         onWireClick={onWireClick}
        />
       
 

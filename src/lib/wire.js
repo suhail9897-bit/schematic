@@ -11,6 +11,7 @@ export function pathIntersectsComponent(path, components) {
     const segEnd = path[i + 1];
 
     for (const comp of components) {
+      if (comp?.type === 'manualWire') continue;
       const left = comp.x - 60 + buffer;
       const right = comp.x + 60 - buffer;
       const top = comp.y - 60 + buffer;
@@ -177,6 +178,7 @@ if (grid[row] && grid[row][col] === 1) continue; // ❌ Blocked terminal cell
 // 🔍 Check if point lies inside any component’s bounding box
 function isInsideComponent(point, components, buffer = 10) {
   for (const comp of components) {
+    if (comp?.type === 'manualWire') continue;
     const left = comp.x - 60 + buffer;
     const right = comp.x + 60 - buffer;
     const top = comp.y - 60 + buffer;

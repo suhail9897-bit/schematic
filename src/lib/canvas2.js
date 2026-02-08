@@ -2,6 +2,7 @@
 import { drawResistor } from './resistor';
 import { drawCapacitor } from './capacitor';
 import { drawInductor } from './inductor';
+import { drawManualWire } from './manualWire';
 import { drawDiode } from './diode';
 import { drawNPN } from './npn';
 import { drawPNP } from './pnp';
@@ -21,6 +22,7 @@ import { aStarOrthogonalPath, hitTestAllWires, pathIntersectsComponent } from '.
 import { drawSubcktBox } from './subcktbox';
 // same utility logic used in original file
 function areBoxesOverlapping(a, b, boxSize = 120) {
+  if (a?.type === 'manualWire' || b?.type === 'manualWire') return false;
   const half = boxSize / 2;
   return !(
     a.x + half <= b.x - half ||
@@ -272,7 +274,7 @@ const labelWorld = (comp, t) => {
       }
 
       // 🟦 dragged component box
-      if (isSelected && this.dragging) {
+      if (isSelected && this.dragging && comp.type !== 'manualWire') {        
         const boxSize = 120;
         this.ctx.fillStyle = 'rgba(211, 211, 211, 0.2)';
         this.ctx.fillRect(comp.x - boxSize / 2, comp.y - boxSize / 2, boxSize, boxSize);
@@ -280,6 +282,18 @@ const labelWorld = (comp, t) => {
         this.ctx.lineWidth = 1 / this.scale;
         this.ctx.strokeRect(comp.x - boxSize / 2, comp.y - boxSize / 2, boxSize, boxSize);
       }
+
+      // 🟨 manualWire move-region (show on select + during drag)
+      if (isSelected && comp.type === 'manualWire') {
+        const boxSize = 30;
+        this.ctx.fillStyle = 'rgba(211, 211, 211, 0.12)';
+        this.ctx.fillRect(comp.x - boxSize / 2, comp.y - boxSize / 2, boxSize, boxSize);
+
+        this.ctx.strokeStyle = 'rgba(217, 240, 14, 1)';
+        this.ctx.lineWidth = 1 / this.scale;
+        this.ctx.strokeRect(comp.x - boxSize / 2, comp.y - boxSize / 2, boxSize, boxSize);
+      }
+
 
       const drawWithRotation = (fn) => {
         if (comp.angle) {
@@ -416,7 +430,11 @@ drawWithRotation((cx, cy) => drawInductor(this.ctx, cx, cy, this.scale, text, is
   this.ctx.fillText(props, cx, cy + yOff);
 }
 
-  }); } else if (comp.type === 'subcktbox') {
+  }); }  else if (comp.type === 'manualWire') {
+        drawWithRotation((cx, cy) =>
+          drawManualWire(this.ctx, cx, cy, this.scale, isSelected, this.gridSize)
+        );
+      }  else if (comp.type === 'subcktbox') {
         drawWithRotation((cx, cy) =>
           drawSubcktBox(this.ctx, cx, cy, this.scale, comp, isSelected, this.gridSize)
         );
@@ -470,14 +488,54 @@ if (comp.terminals) {
     this.ctx.textAlign = 'center';
     this.ctx.textBaseline = 'bottom';
     this.ctx.fillText(terminal.netLabel, globalX, globalY - 8);
-    if (this.showNetLabels) {
-      this.ctx.font = `${12}px sans-serif`;
-      this.ctx.fillStyle = 'cyan';
-      this.ctx.textAlign = 'center';
-      this.ctx.textBaseline = 'bottom';
-      this.ctx.fillText(terminal.netLabel, globalX, globalY - 8);
+   // (text + dot exactly as before)
+this.ctx.font = `${12}px sans-serif`;
+this.ctx.fillStyle = 'transparent';
+this.ctx.textAlign = 'center';
+this.ctx.textBaseline = 'bottom';
+this.ctx.fillText(terminal.netLabel, globalX, globalY - 8);
+
+// ✅ manualWire terminal: if it sits on ANY other terminal coordinate, hide its label
+const mwHideLabel =
+  comp?.type === 'manualWire' &&
+  (() => {
+    const kx = Math.round(globalX);
+    const ky = Math.round(globalY);
+
+    for (const oc of this.components) {
+      if (!oc?.terminals?.length) continue;
+      if (oc === comp) continue;
+
+      for (let oi = 0; oi < oc.terminals.length; oi++) {
+        const ot = oc.terminals[oi];
+
+        let ox, oy;
+        if (ot.terminalSpace === 'world' || Math.abs(ot.x) > 200 || Math.abs(ot.y) > 200) {
+          ox = ot.x; oy = ot.y;
+        } else if (!oc.angle || oc.terminalsBase) {
+          ox = oc.x + ot.x; oy = oc.y + ot.y;
+        } else {
+          const s = Math.sin(oc.angle), c = Math.cos(oc.angle);
+          ox = oc.x + ot.x * c - ot.y * s;
+          oy = oc.y + ot.x * s + ot.y * c;
+        }
+
+        if (Math.round(ox) === kx && Math.round(oy) === ky) return true;
+      }
     }
-const r = 2 / this.scale;
+    return false;
+  })();
+
+if (this.showNetLabels && !mwHideLabel) {
+  this.ctx.font = `${12}px sans-serif`;
+  this.ctx.fillStyle = 'cyan';
+  this.ctx.textAlign = 'center';
+  this.ctx.textBaseline = 'bottom';
+  this.ctx.fillText(terminal.netLabel, globalX, globalY - 8);
+}
+
+const r = (comp?.type === 'manualWire' ? 6 : 2) / this.scale;
+
 this.ctx.fillStyle = 'cyan';
 
 this.ctx.beginPath();
@@ -532,7 +590,8 @@ if (flashOn) {
       // this.ctx.fillStyle = 'rgb(153,153,153, 0.7)';
       this.ctx.fillStyle = 'red';
       this.ctx.beginPath();
-      this.ctx.arc(comp.x, comp.y, 2 / this.scale, 0, Math.PI * 2);
+      const snapR = (comp?.type === 'manualWire' ? 2 : 2) / this.scale;
+      this.ctx.arc(comp.x, comp.y, snapR, 0, Math.PI * 2);
       this.ctx.fill();
     }
 
@@ -575,8 +634,10 @@ if (this._ghost && this._ghost.type) {
   else if (g.type === 'nand')     drawGhost((cx,cy)=>drawNAND(ctx,cx,cy,this.scale,      maybe('', 'NAND'), false));
   else if (g.type === 'nor')      drawGhost((cx,cy)=>drawNOR(ctx,cx,cy,this.scale,       maybe('', 'NOR'),  false));
   else if (g.type === 'xor')      drawGhost((cx,cy)=>drawXOR(ctx,cx,cy,this.scale,       maybe('', 'XOR'),  false));
+  else if (g.type === 'manualWire') drawGhost((cx,cy)=>drawManualWire(ctx,cx,cy,this.scale, false, this.gridSize));
 
   // same overlap box used during drag (yellow)
+  if (g.type !== 'manualWire') {
   const boxSize = 120;
   for (const c of this.components) {
     // use same signature you use for dragging:
@@ -590,6 +651,7 @@ if (this._ghost && this._ghost.type) {
       break;
     }
   }
+}
 }
 
 
@@ -844,6 +906,83 @@ try {
             const commonNet = term1.netLabel || term2.netLabel || `net${this.netCounter++}`;
             term1.netLabel = commonNet;
             term2.netLabel = commonNet;
+            // ✅ If either side is manualWire, propagate same net to its other terminal too
+if (t1.comp?.type === 'manualWire' && Array.isArray(t1.comp.terminals)) {
+  t1.comp.terminals.forEach(tt => { tt.netLabel = commonNet; });
+}
+if (t2.comp?.type === 'manualWire' && Array.isArray(t2.comp.terminals)) {
+  t2.comp.terminals.forEach(tt => { tt.netLabel = commonNet; });
+}
+            // 🔀 If a single-terminal manualWire now has exactly 2 attached wires,
+            // merge those two wires into one and remove the manualWire node.
+            const _tryCollapseManualWire = (mwComp) => {
+              if (!mwComp || mwComp.type !== 'manualWire') return;
+              if (!Array.isArray(mwComp.terminals) || mwComp.terminals.length !== 1) return;
+
+              const mwId = mwComp.id;
+              const mwTi = 0;
+
+              const attached = this.wires.filter((w) => {
+                const f = w.from, t = w.to;
+                return (
+                  (String(f?.compId) === String(mwId) && f?.terminalIndex === mwTi) ||
+                  (String(t?.compId) === String(mwId) && t?.terminalIndex === mwTi)
+                );
+              });
+
+              // only collapse when it is being used as a simple route point (degree = 2)
+              if (attached.length !== 2) return;
+
+              const [wA, wB] = attached;
+
+              const isMW = (end) =>
+                String(end?.compId) === String(mwId) && end?.terminalIndex === mwTi;
+
+              const otherEnd = (w) => (isMW(w.from) ? w.to : w.from);
+
+              const endA = otherEnd(wA);
+              const endB = otherEnd(wB);
+              if (!endA || !endB) return;
+
+              const pA = Array.isArray(wA.path) ? wA.path : [];
+              const pB = Array.isArray(wB.path) ? wB.path : [];
+
+              // orient as: endA -> MW  +  MW -> endB
+              const aToMW = isMW(wA.to) ? pA : pA.slice().reverse();
+              const mwToB = isMW(wB.from) ? pB : pB.slice().reverse();
+
+              const mergedPath =
+                aToMW.length && mwToB.length ? aToMW.concat(mwToB.slice(1)) : [];
+
+              // remove the 2 old wires
+              this.wires = this.wires.filter((w) => w !== wA && w !== wB);
+
+              // add the merged wire (keep color if both share it)
+              const mergedWire = {
+                id: `wire${Date.now()}_${Math.floor(Math.random() * 1e6)}`,
+                from: { ...endA, netLabel: commonNet },
+                to: { ...endB, netLabel: commonNet },
+                path: mergedPath,
+              };
+              if (wA.color && wA.color === wB.color) mergedWire.color = wA.color;
+
+              this.wires.push(mergedWire);
+
+              // remove the manualWire node itself
+              this.components = this.components.filter((c) => c !== mwComp);
+
+              // clean selection references (safe)
+              if (this.selectedComponent && String(this.selectedComponent.id) === String(mwId)) {
+                this.selectedComponent = null;
+              }
+              if (Array.isArray(this.multiSelected)) {
+                this.multiSelected = this.multiSelected.filter((c) => String(c.id) !== String(mwId));
+              }
+            };
+
+            _tryCollapseManualWire(t1.comp);
+            _tryCollapseManualWire(t2.comp);
+
 
             // 🧹 Clear selection after drawing wire
             this.selectedTerminals = [];

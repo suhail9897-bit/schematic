@@ -98,6 +98,9 @@ import { installDraw,
     installMouseMoveUpZoom
  } from './canvas2';
 
+import { getManualWireTerminals } from './manualWire';
+
+
 
 class CanvasUtils {
   constructor(canvas, gridSize = 30) {
@@ -244,6 +247,7 @@ rotateGhostTo(rad) {
 // internal: same box size you use for drag overlap
 _overlapsAnyComponent(x, y, boxSize = 120) {
   for (const c of this.components) {
+    if (c?.type === 'manualWire') continue; // manual wires never participate in overlap blocking
     if (Math.abs(c.x - x) < boxSize && Math.abs(c.y - y) < boxSize) {
       return true;
     }
@@ -255,7 +259,7 @@ _overlapsAnyComponent(x, y, boxSize = 120) {
 placeGhostNow() {
   const g = this._ghost;
   if (!g || !g.type) return false;
-  if (this._overlapsAnyComponent(g.x, g.y)) {
+   if (g.type !== 'manualWire' && this._overlapsAnyComponent(g.x, g.y)) {
     alert("Can't place component here — overlaps another!");
     return false;
   }
@@ -266,6 +270,7 @@ placeGhostNow() {
     resistor:  (x,y)=>this.drawResistorAt(x,y),
     capacitor: (x,y)=>this.drawCapacitorAt(x,y),
     inductor:  (x,y)=>this.drawInductorAt(x,y),
+    manualWire:(x,y)=>this.drawManualWireAt(x,y),
     diode:     (x,y)=>this.drawDiodeAt(x,y),
     npn:       (x,y)=>this.drawNPNAt(x,y),
     pnp:       (x,y)=>this.drawPNPAt(x,y),
@@ -1421,6 +1426,7 @@ pasteClipboardAt(tx, ty) {
    // ⛔ preflight: block paste if any pasted component would overlap existing ones
   // (same 120px half-box convention as drag/overlap)
   for (const snap of this.clipboard.comps) {
+    if (snap?.type === 'manualWire') continue; // manualWire can overlap anything
     const nx = Math.round((snap.x + dx) / this.gridSize) * this.gridSize;
     const ny = Math.round((snap.y + dy) / this.gridSize) * this.gridSize;
     if (this._overlapsAnyComponent(nx, ny , 70 )) {
@@ -1567,6 +1573,74 @@ let nextAuto = maxAuto + 1;
     const b = nodeId(w.to.compId,   w.to.terminalIndex);
     if (parent.has(a) && parent.has(b)) union(a, b);
   }
+
+// 2.5) manualWire behavior:
+//  - its 2 terminals are a SHORT => always same net
+//  - if a manualWire terminal lands exactly on any other terminal coordinate,
+//    they become same net (and since manualWire is short, both ends follow).
+
+const labelWorld = (comp, t) => {
+  const lx = t.x, ly = t.y;
+
+  // subcktbox terminals behave like simple local offsets
+  if (comp?.type === 'subcktbox') {
+    return { x: comp.x + lx, y: comp.y + ly };
+  }
+
+  // world-space terminals (or huge coords) are already absolute
+  if (t?.terminalSpace === 'world' || Math.abs(lx) > 200 || Math.abs(ly) > 200) {
+    return { x: lx, y: ly };
+  }
+
+  // some components use base terminals (no rotation)
+  if (comp?.terminalsBase) {
+    return { x: comp.x + lx, y: comp.y + ly };
+  }
+
+  // normal local terminal with optional rotation
+  if (!comp?.angle) return { x: comp.x + lx, y: comp.y + ly };
+  const s = Math.sin(comp.angle), c = Math.cos(comp.angle);
+  return { x: comp.x + lx * c - ly * s, y: comp.y + lx * s + ly * c };
+};
+
+// (A) short endpoints of each manualWire
+for (const comp of this.components) {
+  if (comp?.type !== 'manualWire') continue;
+  if (!Array.isArray(comp.terminals) || comp.terminals.length < 2) continue;
+
+  const a = nodeId(comp.id, 0);
+  const b = nodeId(comp.id, 1);
+  if (parent.has(a) && parent.has(b)) union(a, b);
+}
+
+// (B) coordinate-connect: only when that coordinate has a manualWire terminal
+const coordMap = new Map(); // key -> { nodes:[], hasMW:boolean }
+
+for (const comp of this.components) {
+  const terms = comp.terminals || [];
+  for (let i = 0; i < terms.length; i++) {
+    const id = nodeId(comp.id, i);
+    if (!parent.has(id)) continue;
+
+    const w = labelWorld(comp, terms[i]);
+    const k = `${Math.round(w.x)}:${Math.round(w.y)}`;
+
+    if (!coordMap.has(k)) coordMap.set(k, { nodes: [], hasMW: false });
+    const entry = coordMap.get(k);
+    entry.nodes.push(id);
+    if (comp?.type === 'manualWire') entry.hasMW = true;
+  }
+}
+
+for (const entry of coordMap.values()) {
+  if (!entry.hasMW) continue;      // only auto-merge when manualWire is involved
+  if (entry.nodes.length < 2) continue;
+
+  const [first, ...rest] = entry.nodes;
+  for (const n of rest) union(first, n);
+}
+
+
 
   // 3) assign fresh net labels per connected component
   // 3) build connected groups from DSU  ye bhi remove kiya ja skta h in-case net labels mein problem hui
@@ -2141,6 +2215,38 @@ drawInductorAt(x, y, value = '10 mH') {
   this.draw();
 }
 
+drawManualWireAt(x, y) {
+  const snappedX = this.snapToGrid(x);
+  const snappedY = this.snapToGrid(y);
+
+  // ✅ No overlap blocking for manualWire
+  const uniqueId = `manualWire_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+  // ✅ manualWire: both terminals must start with SAME net label
+if (!this.netCounter) this.netCounter = 1;
+const sharedNet = `net${this.netCounter++}`;
+
+
+  const mw = {
+    id: uniqueId,
+    x: snappedX,
+    y: snappedY,
+    type: 'manualWire',
+    label: '',
+    value: '',
+    terminals: getManualWireTerminals(snappedX, snappedY, this.gridSize).map(t => ({
+      ...t,
+      x: t.x - snappedX,
+      y: t.y - snappedY,
+      terminalSpace: 'local',
+      netLabel: sharedNet,
+    })),
+  };
+
+  this.components.push(mw);
+  this.selected = mw;
+  this.draw();
+}
+
 
 
 
@@ -2491,10 +2597,12 @@ drawANDAt(x, y, label = 'AND') {
 }
 
 isOverlapping(x, y, ignoreComponent = null) {
+  if (ignoreComponent?.type === 'manualWire') return false;
   const half = 60;
 
   for (const comp of this.components) {
     if (comp === ignoreComponent) continue;
+    if (comp?.type === 'manualWire') continue;
 
     if (!(
       x + half <= comp.x - half ||

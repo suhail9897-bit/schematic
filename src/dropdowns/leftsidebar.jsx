@@ -18,6 +18,7 @@ import nandIcon from "../assets/iconNand.png";
 import norIcon from "../assets/iconNor.png";
 import xorIcon from "../assets/iconXor.png";
 import vddiIcon from "../assets/iconVdd.png";
+import wireIcon from "../assets/iconWire.png";
 import Tooltip from "../extraFiles/tooltip";
 
 
@@ -55,6 +56,16 @@ const IconInductor = (p) => (
     {...p}
   />
 );
+const IconWire = (p) => (
+  <img
+    src={wireIcon}
+    alt="wire"
+    width="20"
+    height="20"
+    {...p}
+  />
+);
+
 const IconDiode     = (p)=> (
   <img
     src={diodeIcon}
@@ -202,7 +213,7 @@ const IconXOR = (p)=>(
   
 
 export default function LeftSidebar({
-  onResistorClick, onCapacitorClick, onInductorClick,
+  onResistorClick, onCapacitorClick, onInductorClick,onWireClick,
   onDiodeClick, onNPNClick, onPNPClick, onNMOSClick, onPMOSClick,
   onINClick, onOUTClick, onInOutClick, onVDCClick, onVSSIClick, onVDDIClick,
   onNOTClick, onNANDClick, onNORClick, onXORClick,
@@ -268,6 +279,11 @@ export default function LeftSidebar({
 <Tooltip text="Inductor">
   {btn('inductor', onInductorClick, <IconInductor />)}
 </Tooltip>
+
+<Tooltip text="Wire">
+  {btn("wire", onWireClick, <IconWire />)}
+</Tooltip>
+
 
 <span className="mx-1 w-px h-6 bg-white/10 rounded " />
 
