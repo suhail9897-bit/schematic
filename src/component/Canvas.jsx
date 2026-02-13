@@ -269,6 +269,7 @@ useEffect(() => {
       clearAll,
       downloadCircuit,
       resetView: () => engineRef.current?.resetView(),
+      fitToScreen: () => engineRef.current?.fitToScreen?.(),   // ✅ yahin add karo
       getSelected: () => engineRef.current?.getSelectedSnapshot(),
       updateSelected: (patch) => engineRef.current?.updateSelected(patch),
       getResValueVM:    () => engineRef.current?.getResValueVM?.(),

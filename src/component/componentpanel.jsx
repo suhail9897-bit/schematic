@@ -245,7 +245,7 @@ useEffect(() => {
     </button>
   </Tooltip>
 
-  <Tooltip text="Fit to Screen">
+  <Tooltip text="Home">
     <button
       className={btn}
       onClick={onResetViewClick}
@@ -366,6 +366,16 @@ useEffect(() => {
     onChange={handleCreateBoxFile}
     style={{ display: 'none' }}
   />
+
+  <Tooltip text="Fit To Screen">
+  <button
+    className={btn}
+    onClick={() => canvasRef.current?.fitToScreen?.()}
+  >
+    <ResetViewSquare size={18} />
+  </button>
+</Tooltip>
+
 
 
       </div>

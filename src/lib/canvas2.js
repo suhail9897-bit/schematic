@@ -900,88 +900,105 @@ try {
               path: path
             });
 
-            // 🔁 Merge net labels
-            const term1 = t1.comp.terminals[t1.index];
-            const term2 = t2.comp.terminals[t2.index];
-            const commonNet = term1.netLabel || term2.netLabel || `net${this.netCounter++}`;
-            term1.netLabel = commonNet;
-            term2.netLabel = commonNet;
-            // ✅ If either side is manualWire, propagate same net to its other terminal too
+// 🔁 Merge net labels (prefer 2nd clicked terminal's net)
+//    + propagate across the whole connected component
+const term1 = t1.comp.terminals[t1.index];
+const term2 = t2.comp.terminals[t2.index];
+
+// ✅ 2nd click wins (net2), else fallback to net1, else new auto net
+const commonNet = term2.netLabel || term1.netLabel || `net${this.netCounter++}`;
+
+// assign to both clicked terminals
+term1.netLabel = commonNet;
+term2.netLabel = commonNet;
+
+// ✅ If either side is manualWire, keep its all terminals on same net
 if (t1.comp?.type === 'manualWire' && Array.isArray(t1.comp.terminals)) {
-  t1.comp.terminals.forEach(tt => { tt.netLabel = commonNet; });
+  t1.comp.terminals.forEach((tt, ti) => {
+    tt.netLabel = commonNet;
+    this._updateWireLabelsFor?.(t1.comp.id, ti, commonNet);
+  });
 }
 if (t2.comp?.type === 'manualWire' && Array.isArray(t2.comp.terminals)) {
-  t2.comp.terminals.forEach(tt => { tt.netLabel = commonNet; });
+  t2.comp.terminals.forEach((tt, ti) => {
+    tt.netLabel = commonNet;
+    this._updateWireLabelsFor?.(t2.comp.id, ti, commonNet);
+  });
 }
+
+// ✅ main part: propagate the chosen net through the entire connected network
+// (wire add ho chuka hai, so BFS dono sides ko cover karega)
+this._propagateNetLabel?.(t2.comp.id, t2.index, commonNet);
+
             // 🔀 If a single-terminal manualWire now has exactly 2 attached wires,
             // merge those two wires into one and remove the manualWire node.
-            const _tryCollapseManualWire = (mwComp) => {
-              if (!mwComp || mwComp.type !== 'manualWire') return;
-              if (!Array.isArray(mwComp.terminals) || mwComp.terminals.length !== 1) return;
+            // const _tryCollapseManualWire = (mwComp) => {
+            //   if (!mwComp || mwComp.type !== 'manualWire') return;
+            //   if (!Array.isArray(mwComp.terminals) || mwComp.terminals.length !== 1) return;
 
-              const mwId = mwComp.id;
-              const mwTi = 0;
+            //   const mwId = mwComp.id;
+            //   const mwTi = 0;
 
-              const attached = this.wires.filter((w) => {
-                const f = w.from, t = w.to;
-                return (
-                  (String(f?.compId) === String(mwId) && f?.terminalIndex === mwTi) ||
-                  (String(t?.compId) === String(mwId) && t?.terminalIndex === mwTi)
-                );
-              });
+            //   const attached = this.wires.filter((w) => {
+            //     const f = w.from, t = w.to;
+            //     return (
+            //       (String(f?.compId) === String(mwId) && f?.terminalIndex === mwTi) ||
+            //       (String(t?.compId) === String(mwId) && t?.terminalIndex === mwTi)
+            //     );
+            //   });
 
-              // only collapse when it is being used as a simple route point (degree = 2)
-              if (attached.length !== 2) return;
+            //   // only collapse when it is being used as a simple route point (degree = 2)
+            //   if (attached.length !== 2) return;
 
-              const [wA, wB] = attached;
+            //   const [wA, wB] = attached;
 
-              const isMW = (end) =>
-                String(end?.compId) === String(mwId) && end?.terminalIndex === mwTi;
+            //   const isMW = (end) =>
+            //     String(end?.compId) === String(mwId) && end?.terminalIndex === mwTi;
 
-              const otherEnd = (w) => (isMW(w.from) ? w.to : w.from);
+            //   const otherEnd = (w) => (isMW(w.from) ? w.to : w.from);
 
-              const endA = otherEnd(wA);
-              const endB = otherEnd(wB);
-              if (!endA || !endB) return;
+            //   const endA = otherEnd(wA);
+            //   const endB = otherEnd(wB);
+            //   if (!endA || !endB) return;
 
-              const pA = Array.isArray(wA.path) ? wA.path : [];
-              const pB = Array.isArray(wB.path) ? wB.path : [];
+            //   const pA = Array.isArray(wA.path) ? wA.path : [];
+            //   const pB = Array.isArray(wB.path) ? wB.path : [];
 
-              // orient as: endA -> MW  +  MW -> endB
-              const aToMW = isMW(wA.to) ? pA : pA.slice().reverse();
-              const mwToB = isMW(wB.from) ? pB : pB.slice().reverse();
+            //   // orient as: endA -> MW  +  MW -> endB
+            //   const aToMW = isMW(wA.to) ? pA : pA.slice().reverse();
+            //   const mwToB = isMW(wB.from) ? pB : pB.slice().reverse();
 
-              const mergedPath =
-                aToMW.length && mwToB.length ? aToMW.concat(mwToB.slice(1)) : [];
+            //   const mergedPath =
+            //     aToMW.length && mwToB.length ? aToMW.concat(mwToB.slice(1)) : [];
 
-              // remove the 2 old wires
-              this.wires = this.wires.filter((w) => w !== wA && w !== wB);
+            //   // remove the 2 old wires
+            //   this.wires = this.wires.filter((w) => w !== wA && w !== wB);
 
-              // add the merged wire (keep color if both share it)
-              const mergedWire = {
-                id: `wire${Date.now()}_${Math.floor(Math.random() * 1e6)}`,
-                from: { ...endA, netLabel: commonNet },
-                to: { ...endB, netLabel: commonNet },
-                path: mergedPath,
-              };
-              if (wA.color && wA.color === wB.color) mergedWire.color = wA.color;
+            //   // add the merged wire (keep color if both share it)
+            //   const mergedWire = {
+            //     id: `wire${Date.now()}_${Math.floor(Math.random() * 1e6)}`,
+            //     from: { ...endA, netLabel: commonNet },
+            //     to: { ...endB, netLabel: commonNet },
+            //     path: mergedPath,
+            //   };
+            //   if (wA.color && wA.color === wB.color) mergedWire.color = wA.color;
 
-              this.wires.push(mergedWire);
+            //   this.wires.push(mergedWire);
 
-              // remove the manualWire node itself
-              this.components = this.components.filter((c) => c !== mwComp);
+            //   // remove the manualWire node itself
+            //   this.components = this.components.filter((c) => c !== mwComp);
 
-              // clean selection references (safe)
-              if (this.selectedComponent && String(this.selectedComponent.id) === String(mwId)) {
-                this.selectedComponent = null;
-              }
-              if (Array.isArray(this.multiSelected)) {
-                this.multiSelected = this.multiSelected.filter((c) => String(c.id) !== String(mwId));
-              }
-            };
+            //   // clean selection references (safe)
+            //   if (this.selectedComponent && String(this.selectedComponent.id) === String(mwId)) {
+            //     this.selectedComponent = null;
+            //   }
+            //   if (Array.isArray(this.multiSelected)) {
+            //     this.multiSelected = this.multiSelected.filter((c) => String(c.id) !== String(mwId));
+            //   }
+            // };
 
-            _tryCollapseManualWire(t1.comp);
-            _tryCollapseManualWire(t2.comp);
+            // _tryCollapseManualWire(t1.comp);
+            // _tryCollapseManualWire(t2.comp);
 
 
             // 🧹 Clear selection after drawing wire

@@ -1073,14 +1073,22 @@ cutSelectedWire() {
 // Helper: when terminal net name changes, reflect on connected wires too
 _updateWireLabelsFor(compId, terminalIndex, newNet) {
   for (const w of this.wires) {
+    let touched = false;
+
     if (w.from.compId === compId && w.from.terminalIndex === terminalIndex) {
       w.from.netLabel = newNet;
+      touched = true;
     }
     if (w.to.compId === compId && w.to.terminalIndex === terminalIndex) {
       w.to.netLabel = newNet;
+      touched = true;
     }
+
+    // keep top-level wire netLabel consistent (used by whole-net color)
+    if (touched) w.netLabel = newNet;
   }
 }
+
 
 // Update selected component (start with resistor)
 updateSelected(patch = {}) {
@@ -1167,6 +1175,70 @@ resetView() {
   this.offsetY = this.height / 2;
   this.draw();
 }
+// Fit everything (components + wires) into the visible screen
+fitToScreen({ paddingPx = 80, minScale = 0.08, maxScale = 4 } = {}) {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+  const include = (x, y) => {
+    if (x < minX) minX = x;
+    if (y < minY) minY = y;
+    if (x > maxX) maxX = x;
+    if (y > maxY) maxY = y;
+  };
+
+  // Components (+ their terminals)
+  for (const c of (this.components || [])) {
+    if (!c) continue;
+
+    // Always include component center
+    include(c.x, c.y);
+
+    // Approx body padding so labels/body also stay inside view
+    const bodyPad = (c.type === 'manualWire') ? (this.gridSize * 2) : 120;
+    include(c.x - bodyPad, c.y - bodyPad);
+    include(c.x + bodyPad, c.y + bodyPad);
+
+    const terms = c.terminals || [];
+    for (const t of terms) {
+      const isWorld = t?.terminalSpace === 'world' || Math.abs(t.x) > 200 || Math.abs(t.y) > 200;
+      const wx = isWorld ? t.x : (c.x + t.x);
+      const wy = isWorld ? t.y : (c.y + t.y);
+      include(wx, wy);
+    }
+  }
+
+  // Wires (their routed path points)
+  for (const w of (this.wires || [])) {
+    const path = w?.path || [];
+    for (const p of path) include(p.x, p.y);
+  }
+
+  // Nothing on canvas -> normal home
+  if (minX === Infinity) {
+    this.resetView();
+    return;
+  }
+
+  const contentW = Math.max(maxX - minX, this.gridSize * 10);
+  const contentH = Math.max(maxY - minY, this.gridSize * 10);
+
+  const usableW = Math.max(10, (this.width  || 0) - 2 * paddingPx);
+  const usableH = Math.max(10, (this.height || 0) - 2 * paddingPx);
+
+  let newScale = Math.min(usableW / contentW, usableH / contentH);
+  newScale = Math.max(minScale, Math.min(maxScale, newScale));
+
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+
+  this.scale = newScale;
+  this.offsetX = (this.width / 2) - cx * this.scale;
+  this.offsetY = (this.height / 2) - cy * this.scale;
+
+  this.draw();
+}
+
+
 
   rotateSelected(direction = "cw") {
   if (!this.selected) return;
