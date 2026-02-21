@@ -436,7 +436,7 @@ drawWithRotation((cx, cy) => drawInductor(this.ctx, cx, cy, this.scale, text, is
         );
       }  else if (comp.type === 'subcktbox') {
         drawWithRotation((cx, cy) =>
-          drawSubcktBox(this.ctx, cx, cy, this.scale, comp, isSelected, this.gridSize)
+          drawSubcktBox(this.ctx, cx, cy, this.scale, comp, isSelected, this.gridSize, (this.showCellNames !== false))
         );
        } else {
   const nameR = deviceNamesOn() ? (comp.label || 'R') : '';

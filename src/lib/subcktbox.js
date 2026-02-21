@@ -5,6 +5,9 @@ function measureBox(comp, grid) {
   const g = grid || 30;
   const nIn  = (comp?.subckt?.inputs || []).length;
   const nTop = (comp?.subckt?.powers || []).length;
+  const outs = Array.isArray(comp?.subckt?.outputs) ? comp.subckt.outputs : [];
+  const out0 = String(comp?.subckt?.output || "").trim();
+  const nOut = outs.length ? outs.length : (out0 ? 1 : 0);
   const nBot = (comp?.subckt?.grounds || []).length;
 
   // Height driven primarily by inputs; width by max of supplies
@@ -12,7 +15,9 @@ function measureBox(comp, grid) {
   const minBodyH = 4 * g;                        // minimum box body height
   const minBodyW = 8 * g;                        // minimum body width
 
-  const bodyH = Math.max(minBodyH, (nIn + 2) * pinStep);
+  const nIO = Math.max(nIn, nOut);
+  const bodyH = Math.max(minBodyH, (nIO + 2) * pinStep);
+
   // NEW: keep constant center-to-center spacing = 2*g for top/bottom stubs
 const stubStep = 2 * g;                                // ← uniform horizontal step
 const maxStubs = Math.max(nTop, nBot);
@@ -23,13 +28,14 @@ const bodyW = Math.max(minBodyW, neededSpan + innerPad);
   const halfW = Math.round(bodyW / 2 / g) * g;
   const halfH = Math.round(bodyH / 2 / g) * g;
 
-  return { g, nIn, nTop, nBot, bodyW, bodyH, halfW, halfH, pinStep,  stubStep };
+  return { g, nIn, nOut, nTop, nBot, bodyW, bodyH, halfW, halfH, pinStep, stubStep };
 }
 
 
 
 export function getSubcktBoxTerminals(comp, grid) {
-  const { g, nIn, nTop, nBot, halfW, halfH, bodyW, pinStep,  stubStep } = measureBox(comp, grid);
+  const { g, nIn, nOut, nTop, nBot, halfW, halfH, bodyW, pinStep, stubStep } = measureBox(comp, grid);
+
 
   const terms = [];
 
@@ -40,8 +46,13 @@ export function getSubcktBoxTerminals(comp, grid) {
     terms.push({ x: -halfW - g, y, netLabel: "" , terminalSpace: 'local' });
   }
 
-  // RIGHT single output
-  terms.push({ x:  halfW + g, y: 0, netLabel: "" , terminalSpace: 'local' });
+  // RIGHT outputs
+  const yOut0 = -Math.floor(nOut / 2) * pinStep;
+  for (let i = 0; i < nOut; i++) {
+    const y = yOut0 + i * pinStep;
+    terms.push({ x: halfW + g, y, netLabel: "", terminalSpace: "local" });
+  }
+
 
   // TOP powers (spread across width)
 // NEW (uniform 2*g spacing, centered)
@@ -64,13 +75,20 @@ for (let i = 0; i < nBot; i++) {
 }
 
 // ----- drawing -----
-export function drawSubcktBox(ctx, cx, cy, scale, comp, isSelected, grid) {
-  const { g, nIn, nTop, nBot, bodyW, bodyH, halfW, halfH, pinStep, stubStep } =
-    measureBox(comp, grid);
+export function drawSubcktBox(ctx, cx, cy, scale, comp, isSelected, grid, showCellName = true) {
+  const { g, nIn, nOut, nTop, nBot, bodyW, bodyH, halfW, halfH, pinStep, stubStep } =
+  measureBox(comp, grid);
+
 
   const name    = String(comp?.subckt?.name || comp?.label || 'BLOCK');
   const inputs  = comp?.subckt?.inputs  || [];
-  const outputN = String(comp?.subckt?.output || 'OUT');
+let outputsArr = (Array.isArray(comp?.subckt?.outputs) ? comp.subckt.outputs : [])
+  .map(s => String(s || "").trim())
+  .filter(Boolean);
+
+const out0 = String(comp?.subckt?.output || "").trim();
+if (!outputsArr.length && out0) outputsArr = [out0];
+
   const powers  = comp?.subckt?.powers  || [];
   const grounds = comp?.subckt?.grounds || [];
 
@@ -105,14 +123,21 @@ export function drawSubcktBox(ctx, cx, cy, scale, comp, isSelected, grid) {
     ctx.fillText(String(inputs[i] || ''), -halfW + 6 / scale, y);
   }
 
-  // RIGHT output stub (no outside text)
-  ctx.beginPath();
-  ctx.moveTo(halfW, 0);
-  ctx.lineTo(halfW + g, 0);
-  ctx.stroke();
-  ctx.textAlign = 'right';
-  ctx.fillStyle = '#fff';
-  ctx.fillText(outputN, halfW - 6 / scale, 0);
+  // RIGHT outputs stubs + inside labels
+  const yOut0 = -Math.floor(nOut / 2) * pinStep;
+  for (let i = 0; i < nOut; i++) {
+    const y = yOut0 + i * pinStep;
+
+    ctx.beginPath();
+    ctx.moveTo(halfW, y);
+    ctx.lineTo(halfW + g, y);
+    ctx.stroke();
+
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#fff';
+    ctx.fillText(String(outputsArr[i] || ''), halfW - 6 / scale, y);
+  }
+
 
   // TOP power names (stubs upward)
   ctx.textAlign = 'center';
@@ -146,11 +171,13 @@ for (let i = 0; i < grounds.length; i++) {
 }
 
   // CENTER TITLE
+  if (showCellName) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = isSelected ? '#ffd54f' : '#ffffff';
   ctx.font = `${14}px sans-serif`;
   ctx.fillText(name, 0, 0);
+  }
 
   ctx.restore();
 }

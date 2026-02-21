@@ -156,6 +156,13 @@ useEffect(() => {
   if (typeof p === 'boolean') setPropsVisible(p);
 }, [canvasRef]);
 
+const [cellNamesVisible, setCellNamesVisible] = useState(true);
+
+useEffect(() => {
+  const c = canvasRef?.current?.getCellNamesVisible?.();
+  if (typeof c === 'boolean') setCellNamesVisible(c);
+}, [canvasRef]);
+
 // panel component function ke start me:
 const [multiSelOn, setMultiSelOn] = useState(false);
 
@@ -302,9 +309,17 @@ useEffect(() => {
       }}
     />
   </Tooltip>
-          <Tooltip text="Visible Cellname">
-            <EyeLetterBtn label="C" onClick={() => console.log('clicked: show C')} />
-          </Tooltip>
+       <Tooltip text="Visible Cellname">
+  <EyeLetterBtn
+    label="C"
+    open={cellNamesVisible}
+    onClick={() => {
+      const next = !cellNamesVisible;
+      setCellNamesVisible(next);
+      canvasRef?.current?.setCellNamesVisible?.(next);
+    }}
+  />
+</Tooltip>
 
            <Tooltip text="Undo">
             <button

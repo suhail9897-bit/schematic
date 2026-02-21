@@ -308,6 +308,8 @@ useEffect(() => {
       toggleDeviceLabelsVisible: () => engineRef.current?.toggleDeviceLabelsVisible?.(),
       setPropertyLabelsVisible: (v) => engineRef.current?.setPropertyLabelsVisible?.(v),
       getPropertyLabelsVisible: () => engineRef.current?.getPropertyLabelsVisible?.(),
+      setCellNamesVisible: (v) => engineRef.current?.setCellNamesVisible?.(v),
+      getCellNamesVisible: () => engineRef.current?.getCellNamesVisible?.(),
       // Marquee select (box select) proxies
       getMarqueeEnabled: () => !!engineRef.current?.getMarqueeEnabled?.(),
       // Canvas.jsx (inside useImperativeHandle return object)

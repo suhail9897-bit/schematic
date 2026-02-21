@@ -5,22 +5,37 @@ export function extractBoxSpecFromDesign(design = {}, filename = "DESIGN") {
   // 1) NAME from filename (strip extension)
   const name = upper(filename.replace(/\.[^.]+$/, "") || "DESIGN");
 
-  // 2) INPUT & OUTPUT nets from components[]
-  const inputs = [];
-  let output = "OUT";
-  if (Array.isArray(design.components)) {
-    for (const c of design.components) {
-      if (c?.type === "in") {
-        const t = (c.terminals || [])[0];
-        const n = upper(t?.netLabel || c.label || "");
-        if (n) inputs.push(n);
-      } else if (c?.type === "out") {
-        const t = (c.terminals || [])[0];
-        const n = upper(t?.netLabel || c.label || "");
-        if (n) output = n;
+// 2) INPUT & OUTPUT nets from components[]
+const inputs = [];
+const outputs = [];
+let output = "";
+const supplyP = []; // VDDI-type pins
+const supplyG = []; // VSSI/GND-type pins
+
+if (Array.isArray(design.components)) {
+  for (const c of design.components) {
+    if (c?.type === "in") {
+      const t = (c.terminals || [])[0];
+      const n = upper(t?.netLabel || c.label || "");
+      if (n) inputs.push(n);
+    } else if (c?.type === "out") {
+      const t = (c.terminals || [])[0];
+      const n = upper(t?.netLabel || c.label || "");
+      if (n) {
+        outputs.push(n);     // ✅ keep all outputs
+        output = n;          // ✅ backward compat (old single-output)
       }
+    } else if (String(c?.type || "").toLowerCase() === "vddi") {
+      // ✅ top supply pin label
+      supplyP.push(upper(c.label || "VDDI"));
+    } else if (String(c?.type || "").toLowerCase() === "vssi") {
+      // ✅ bottom ground pin label
+      supplyG.push(upper(c.label || "VSSI"));
     }
+
   }
+}
+
 
   //    lekin ab subckt pin order ke base par actual net-names pick karenge
   const all = Array.isArray(design.__NETLIST_CIR_LINES) ? design.__NETLIST_CIR_LINES : [];
@@ -28,9 +43,9 @@ export function extractBoxSpecFromDesign(design = {}, filename = "DESIGN") {
   const lastSubckt = pickLastSubckt(cirLines); // NEW
 
 
-  // aliases jin pin-names ko "supply" maana jaa sakta hai (SUBCKT header me)
-  const POWER_ALIAS = /^(VDD|VCC|VPP|VDDA|VDDD|AVDD|DVDD)$/i;
-  const GND_ALIAS   = /^(VSS|GND|VEE|AGND|DGND)$/i;
+ // aliases jin pin-names ko "supply" maana jaa sakta hai (SUBCKT header me)
+const POWER_ALIAS = /^(VDD|VCC|VPP|VDDA|VDDD|AVDD|DVDD)/i;  // ✅ matches VDDI, VDDIO, VDD1...
+const GND_ALIAS   = /^(VSS|GND|VEE|AGND|DGND)/i;            // ✅ matches VSSI, VSS1...
 
   // 3a) sab SUBCKT definitions padho → pin order map banao
   const defs = new Map(); // NAME -> { pins:[], pIdx:[], gIdx:[] }
@@ -127,6 +142,13 @@ function parseHierMeta(lines = []) {
 const meta = parseHierMeta(cirLines);  // 'cirLines' already built above
 const preferredP = Array.isArray(meta.unionP) && meta.unionP.length ? meta.unionP : powers;
 const preferredG = Array.isArray(meta.unionG) && meta.unionG.length ? meta.unionG : grounds;
+// ✅ Box label should show pin-names (VDDI/VSSI), not net names (NET16 etc.)
+const lastDef = defs.get(upper(lastSubckt?.name || ""));
+const pinP = lastDef ? lastDef.pIdx.map(i => lastDef.pins[i]).filter(Boolean) : [];
+const pinG = lastDef ? lastDef.gIdx.map(i => lastDef.pins[i]).filter(Boolean) : [];
+
+const displayP = pinP.length ? pinP : (preferredP.length ? ["VDDI"] : []);
+const displayG = pinG.length ? pinG : (preferredG.length ? ["VSSI"] : []);
 
 
 
@@ -141,13 +163,17 @@ const uniqOrder = (arr) => {
   return out;
 };
 
+const finalP = supplyP.length ? supplyP : uniqOrder(preferredP);
+const finalG = supplyG.length ? supplyG : uniqOrder(preferredG);
+
 // replace the old return with this:
 return {
   name,
   inputs,
+  outputs, 
   output,
-  powers: uniqOrder(preferredP),
-  grounds: uniqOrder(preferredG),
+  powers: finalP,
+  grounds: finalG,
   cirLines,         // NEW: full library as-is (stringified)
   lastSubckt        // NEW: { name, blockLines, blockText }
     // carry full library text for emission in netlist

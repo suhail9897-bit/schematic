@@ -423,26 +423,28 @@ const needPMOS_SVT = engine.components.some(
   const sc = comp.subckt || {};
   const tt = comp.terminals || [];
 
-  // Terminals order (see subcktbox.js):
-  // [inputs ...] [output] [powers ...] [grounds ...]
+   // Terminals order (see subcktbox.js):
+  // [inputs ...] [outputs ...] [powers ...] [grounds ...]
   const nIn   = (sc.inputs  || []).length;
+  const nOut  = (Array.isArray(sc.outputs) && sc.outputs.length) ? sc.outputs.length : 1;
   const nTop  = (sc.powers  || []).length;
   const nBot  = (sc.grounds || []).length;
 
   const tLabel = i => NN(tt[i]?.netLabel);
 
   // indices
-  const outIdx   = nIn;                 // single output just after inputs
-  const topStart = nIn + 1;
-  const botStart = nIn + 1 + nTop;
+  const outStart = nIn;
+  const topStart = nIn + nOut;
+  const botStart = nIn + nOut + nTop;
 
-  // collect external nets in SPICE order: OUT, IN..., PWR..., GND...
-  const OUT    = tLabel(outIdx) || "NET_OUT";
-  const INs    = Array.from({length: nIn }, (_,i) => tLabel(i)             || `NET_IN${i+1}`);
-  const PWRs   = Array.from({length: nTop}, (_,i) => tLabel(topStart + i)  || `VDD${i+1}`);
-  const GNDs   = Array.from({length: nBot}, (_,i) => tLabel(botStart + i)  || `VSS${i+1}`);
+  // collect nets in SPICE order: OUT(s), IN..., PWR..., GND...
+  const OUTs  = Array.from({ length: nOut }, (_,i) => tLabel(outStart + i) || `NET_OUT${i+1}`);
+  const INs   = Array.from({ length: nIn  }, (_,i) => tLabel(i)            || `NET_IN${i+1}`);
+  const PWRs  = Array.from({ length: nTop }, (_,i) => tLabel(topStart + i) || NN(sc.powers?.[i])  || `VDD${i+1}`);
+  const GNDs  = Array.from({ length: nBot }, (_,i) => tLabel(botStart + i) || NN(sc.grounds?.[i]) || `VSS${i+1}`);
 
-  const pins = [OUT, ...INs, ...PWRs, ...GNDs];
+  const pins = [...OUTs, ...INs, ...PWRs, ...GNDs];
+
 
   lines.push(`X${name} ${pins.join(' ')} ${sc.name || 'DESIGN1'}`);
   break;

@@ -113,6 +113,7 @@ class CanvasUtils {
     this.showNetLabels = true;
     this.showDeviceLabels = true;
     this.showPropertyLabels = true; 
+    this.showCellNames = true;
     this.components = [];        // ✅ All resistors
     this.selected = null;        // ✅ Currently selected
     this.selectedTerminals = []; // store selected terminals
@@ -181,7 +182,15 @@ addSubcktBox(spec = {}) {
     alert("Move the component near origin and try again (box needs the origin).");
     return null;
   }
+const boxOutputsRaw = Array.isArray(spec.outputs) ? spec.outputs : [];
+const boxOutputs = boxOutputsRaw
+  .map(s => String(s || "").toUpperCase().trim())
+  .filter(Boolean);
 
+if (!boxOutputs.length && spec.output) {
+  const s = String(spec.output).toUpperCase().trim();
+  if (s) boxOutputs.push(s);
+}
   const comp = {
     id: `subcktbox${Date.now()}`,
     type: 'subcktbox',
@@ -191,7 +200,9 @@ addSubcktBox(spec = {}) {
     subckt: {
       name: (spec.name || 'BLOCK').toUpperCase(),
       inputs: Array.isArray(spec.inputs) ? spec.inputs : [],
-      output: spec.output || 'OUT',
+        // ✅ NEW (multi-out)
+     outputs: boxOutputs,
+     output: boxOutputs[0] || "",
       powers: Array.isArray(spec.powers) ? spec.powers : [],
       grounds: Array.isArray(spec.grounds) ? spec.grounds : [],
        // ⬇️ netlist emit ke liye: sirf last .SUBCKT block ko carry karo
@@ -390,6 +401,14 @@ getDeviceLabelsVisible() {
 }
 toggleDeviceLabelsVisible() {
   this.setDeviceLabelsVisible(!this.getDeviceLabelsVisible());
+}
+
+setCellNamesVisible(v) {
+  this.showCellNames = !!v;
+  this.draw();
+}
+getCellNamesVisible() {
+  return !!this.showCellNames;
 }
 
 // ======= NET NAMES VISIBLE/HIDE =======
