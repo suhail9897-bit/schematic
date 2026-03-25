@@ -187,6 +187,30 @@ useEffect(() => {
   const deleteSelected = () => engineRef.current?.deleteSelected?.();
   const clearAll = () => engineRef.current?.clearAll?.();
 
+    const buildNextSubcktDisplayName = (baseName = "BLOCK") => {
+    const base = String(baseName || "BLOCK").toUpperCase();
+    const comps = Array.isArray(engineRef.current?.components)
+      ? engineRef.current.components
+      : [];
+
+    let count = 0;
+
+    for (const comp of comps) {
+      if (comp?.type !== "subcktbox") continue;
+
+      const existingBase = String(
+        comp?.subckt?.displayBaseName ||
+        comp?.subckt?.name ||
+        comp?.label ||
+        ""
+      ).toUpperCase();
+
+      if (existingBase === base) count += 1;
+    }
+
+    return count === 0 ? base : `${base}(${count})`;
+  };
+
   // Expose engine APIs to parent (names mapped 1:1 with your latest App)
   useImperativeHandle(
     ref,
@@ -196,6 +220,11 @@ useEffect(() => {
       createBoxFromDesign: (json, filename = "DESIGN") => {
   try {
     const spec = extractBoxSpecFromDesign(json, filename);
+    const baseName = String(spec?.name || "BLOCK").toUpperCase();
+
+    spec.displayBaseName = baseName;
+    spec.displayName = buildNextSubcktDisplayName(baseName);
+
     const comp = engineRef.current?.addSubcktBox?.(spec);
     // --- NEW: capture last SUBCKT and map to this box ---
     if (comp && spec?.lastSubckt?.blockLines?.length) {

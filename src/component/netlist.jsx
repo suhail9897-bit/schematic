@@ -141,23 +141,61 @@ const needPMOS_SVT = engine.components.some(
     lines.push('');
   }
 
-    // ---- External subcircuit libraries from uploaded "box" components ----
-  // We emit each unique subckt library once, before the top-level .SUBCKT.
-  const seenLibs = new Set();
-  for (const c of engine.components) {
-    const sc = c && c.subckt;
-    if (!sc) continue;
-     const block = (Array.isArray(sc.lastSubcktLines) && sc.lastSubcktLines.length)
-      ? sc.lastSubcktLines : null;
-    const lib = block || (Array.isArray(sc.cirLines) ? sc.cirLines : null);
-    const key = (sc.name || '').toUpperCase();
-    if (lib && lib.length && key && !seenLibs.has(key)) {
-      // keep exactly as provided (user wanted 1:1 spacing)
-      lines.push('');
-      lib.forEach(line => lines.push(String(line)));
-      seenLibs.add(key);
+  function extractModelPrelude(lines = []) {
+  const out = [];
+  let inHierMeta = false;
+
+  for (const raw of (Array.isArray(lines) ? lines : [])) {
+    const line = String(raw ?? "");
+
+    if (/^\s*\*\s*====\s*HIER_META\s*v1\s*BEGIN\s*====\s*$/i.test(line)) {
+      inHierMeta = true;
+      continue;
+    }
+    if (/^\s*\*\s*====\s*HIER_META\s*v1\s*END\s*====\s*$/i.test(line)) {
+      inHierMeta = false;
+      continue;
+    }
+    if (inHierMeta) continue;
+
+    // stop once actual subckt body starts
+    if (/^\s*\.SUBCKT\b/i.test(line)) break;
+
+    if (/^\s*\.MODEL\b/i.test(line)) {
+      out.push(line);
     }
   }
+
+  return out;
+}
+
+    // ---- External subcircuit libraries from uploaded "box" components ----
+  // We emit each unique subckt library once, before the top-level .SUBCKT.
+const seenLibs = new Set();
+for (const c of engine.components) {
+  const sc = c && c.subckt;
+  if (!sc) continue;
+
+  const key = (sc.name || '').toUpperCase();
+  if (!key || seenLibs.has(key)) continue;
+
+  const modelPrelude = extractModelPrelude(sc.cirLines);
+  const block = (Array.isArray(sc.lastSubcktLines) && sc.lastSubcktLines.length)
+    ? sc.lastSubcktLines
+    : null;
+
+  const lib = [
+    ...modelPrelude,
+    ...(modelPrelude.length && block?.length ? [''] : []),
+    ...((block && block.length) ? block.map(String) : [])
+  ];
+
+  if (lib.length) {
+    lines.push('');
+    lib.forEach(line => lines.push(String(line)));
+    seenLibs.add(key);
+  }
+}
 
 
   // ---- Top level pins from IO blocks ----
@@ -446,8 +484,8 @@ const needPMOS_SVT = engine.components.some(
   const pins = [...OUTs, ...INs, ...PWRs, ...GNDs];
 
 
-  lines.push(`X${name} ${pins.join(' ')} ${sc.name || 'DESIGN1'}`);
-  break;
+  const targetSubcktName = NN(sc.displayName || sc.name || 'DESIGN1');
+  lines.push(`X${name} ${pins.join(' ')} ${targetSubcktName}`);  break;
 }
 
 

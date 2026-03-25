@@ -191,29 +191,35 @@ if (!boxOutputs.length && spec.output) {
   const s = String(spec.output).toUpperCase().trim();
   if (s) boxOutputs.push(s);
 }
+   const rawName = String(spec.name || 'BLOCK').toUpperCase();
+  const displayBaseName = String(spec.displayBaseName || rawName).toUpperCase();
+  const displayName = String(spec.displayName || rawName).toUpperCase();
+
   const comp = {
     id: `subcktbox${Date.now()}`,
     type: 'subcktbox',
     x, y,
     angle: 0,
-    label: (spec.name || 'BLOCK').toUpperCase(),
+    label: displayName,
     subckt: {
-      name: (spec.name || 'BLOCK').toUpperCase(),
+      name: rawName,
+      displayName,
+      displayBaseName,
       inputs: Array.isArray(spec.inputs) ? spec.inputs : [],
-        // ✅ NEW (multi-out)
-     outputs: boxOutputs,
-     output: boxOutputs[0] || "",
+      // ✅ NEW (multi-out)
+      outputs: boxOutputs,
+      output: boxOutputs[0] || "",
       powers: Array.isArray(spec.powers) ? spec.powers : [],
       grounds: Array.isArray(spec.grounds) ? spec.grounds : [],
-       // ⬇️ netlist emit ke liye: sirf last .SUBCKT block ko carry karo
-        cirLines:
-          (spec?.lastSubckt?.blockLines?.length
-            ? spec.lastSubckt.blockLines.slice()
-            : (Array.isArray(spec.cirLines) ? spec.cirLines.slice() : [])),
-        // (optional) reference ke liye alag field bhi rakh lo
-        lastSubcktLines: (Array.isArray(spec?.lastSubckt?.blockLines)
-            ? spec.lastSubckt.blockLines.slice() : []),
-        lastSubcktName: String(spec?.lastSubckt?.name || spec?.name || '').toUpperCase()
+      // ⬇️ netlist emit ke liye: sirf last .SUBCKT block ko carry karo
+      cirLines: Array.isArray(spec.cirLines) ? spec.cirLines.slice() : [],
+      // (optional) reference ke liye alag field bhi rakh lo
+      lastSubcktLines: (
+        Array.isArray(spec?.lastSubckt?.blockLines)
+          ? spec.lastSubckt.blockLines.slice()
+          : []
+      ),
+      lastSubcktName: String(spec?.lastSubckt?.name || spec?.name || '').toUpperCase()
     },
     terminals: []
   };
@@ -1125,9 +1131,20 @@ updateSelected(patch = {}) {
     }
   }
 
-  // label (no spaces, max len)
+   // label (no spaces, max len)
   if (typeof patch.label !== "undefined") {
     c.label = this._sanitizeLabel(patch.label);
+
+    if (c.type === "subcktbox") {
+      c.subckt = c.subckt || {};
+      c.subckt.displayName = c.label;
+
+      if (!c.subckt.displayBaseName) {
+        c.subckt.displayBaseName = String(
+          c.subckt.name || c.label || "BLOCK"
+        ).toUpperCase();
+      }
+    }
   }
 
   // terminals (as you already have)
@@ -1144,16 +1161,45 @@ updateSelected(patch = {}) {
     }
   }
 
-  // canvas.js  — updateSelected(patch) ke andar, this.draw() se pehle:
-if (patch.subckt && typeof patch.subckt.name !== "undefined") {
-  const c = this.selected;
-  if (c && c.type === "subcktbox") {
-    c.subckt = c.subckt || {};
-    c.subckt.name = String(patch.subckt.name);
-    // optional: label ko sync rakhna (drawSubcktBox dono me se kisi ek ko padhta hai)
-    c.label = c.subckt.name;
+  if (patch.subckt) {
+    const c = this.selected;
+    if (c && c.type === "subcktbox") {
+      c.subckt = c.subckt || {};
+
+      if (typeof patch.subckt.displayBaseName !== "undefined") {
+        c.subckt.displayBaseName = String(
+          patch.subckt.displayBaseName
+        ).toUpperCase();
+      }
+
+      if (typeof patch.subckt.name !== "undefined") {
+        c.subckt.name = String(patch.subckt.name).toUpperCase();
+
+        if (typeof patch.subckt.displayName === "undefined") {
+          c.subckt.displayName = c.subckt.name;
+          c.label = c.subckt.name;
+        }
+
+        if (!c.subckt.displayBaseName) {
+          c.subckt.displayBaseName = c.subckt.name;
+        }
+      }
+
+      if (typeof patch.subckt.displayName !== "undefined") {
+        const nextDisplay = this._sanitizeLabel(
+          String(patch.subckt.displayName).toUpperCase()
+        );
+        c.subckt.displayName = nextDisplay;
+        c.label = nextDisplay;
+
+        if (!c.subckt.displayBaseName) {
+          c.subckt.displayBaseName = String(
+            c.subckt.name || nextDisplay || "BLOCK"
+          ).toUpperCase();
+        }
+      }
+    }
   }
-}
 
 
   this.draw();

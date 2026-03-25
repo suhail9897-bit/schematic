@@ -26,11 +26,13 @@ if (Array.isArray(design.components)) {
         output = n;          // ✅ backward compat (old single-output)
       }
     } else if (String(c?.type || "").toLowerCase() === "vddi") {
-      // ✅ top supply pin label
-      supplyP.push(upper(c.label || "VDDI"));
+      const t = (c.terminals || [])[0];
+      const n = upper(t?.netLabel || c.label || "VDDI");
+      if (n) supplyP.push(n);
     } else if (String(c?.type || "").toLowerCase() === "vssi") {
-      // ✅ bottom ground pin label
-      supplyG.push(upper(c.label || "VSSI"));
+      const t = (c.terminals || [])[0];
+      const n = upper(t?.netLabel || c.label || "VSSI");
+      if (n) supplyG.push(n);
     }
 
   }

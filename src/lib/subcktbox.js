@@ -80,7 +80,7 @@ export function drawSubcktBox(ctx, cx, cy, scale, comp, isSelected, grid, showCe
   measureBox(comp, grid);
 
 
-  const name    = String(comp?.subckt?.name || comp?.label || 'BLOCK');
+  const name    = String(comp?.subckt?.displayName || comp?.subckt?.name || comp?.label || 'BLOCK');
   const inputs  = comp?.subckt?.inputs  || [];
 let outputsArr = (Array.isArray(comp?.subckt?.outputs) ? comp.subckt.outputs : [])
   .map(s => String(s || "").trim())

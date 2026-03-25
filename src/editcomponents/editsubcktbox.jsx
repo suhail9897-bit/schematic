@@ -5,15 +5,20 @@ export default function EditSubcktBox({ engine, selected }) {
 
   // keep input in sync with current selection (always uppercase)
   useEffect(() => {
-    const initial = String(selected?.subckt?.name || selected?.label || "");
+    const initial = String(
+      selected?.subckt?.displayName ||
+      selected?.subckt?.name ||
+      selected?.label ||
+      ""
+    );
     setValue(initial.toUpperCase());
-  }, [selected?.id]);
+  }, [selected?.id, selected?.subckt?.displayName, selected?.subckt?.name, selected?.label]);
 
   const onChange = (e) => {
     const up = e.target.value.toUpperCase(); // force caps
     setValue(up);
     // live update (same as before)
-    engine?.updateSelected?.({ subckt: { name: up }, label: up });
+    engine?.updateSelected?.({ subckt: { displayName: up }, label: up });
   };
 
   if (!selected || selected.type !== "subcktbox") return null;
